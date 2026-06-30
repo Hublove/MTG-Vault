@@ -5,7 +5,7 @@
 <div class="grid md:grid-cols-[300px_1fr] gap-8">
 
   {# --- Image --- #}
-  <div>
+  <div class="max-w-[16rem] mx-auto md:max-w-none md:mx-0">
     {% if card.image_uri %}
       <img src="{{ card.image_uri }}" alt="{{ card.name }}" class="card-img w-full">
     {% else %}

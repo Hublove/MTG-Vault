@@ -6,7 +6,7 @@
 
   {# --- Commander info --- #}
   <aside class="lg:w-72 shrink-0 space-y-3">
-    <a href="{% url 'cards:card_detail' commander.pk %}" class="block">
+    <a href="{% url 'cards:card_detail' commander.pk %}" class="block max-w-[14rem] mx-auto lg:max-w-none">
       {% if commander.image_uri %}
         <img src="{{ commander.image_uri }}" alt="{{ commander.name }}" class="card-img w-full">
       {% endif %}
