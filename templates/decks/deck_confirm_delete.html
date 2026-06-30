@@ -1,0 +1,14 @@
+{% extends "base.html" %}
+{% block title %}Delete {{ object.name }}{% endblock %}
+
+{% block content %}
+<div class="max-w-md mx-auto rounded-xl border border-slate-800 bg-slate-900/50 p-6">
+  <h1 class="text-lg font-bold mb-2">Delete “{{ object.name }}”?</h1>
+  <p class="text-slate-400 text-sm mb-4">This removes the deck and its card list. Cards in your Vault are unaffected.</p>
+  <form method="post" class="flex gap-2">
+    {% csrf_token %}
+    <button class="rounded-md bg-rose-600 hover:bg-rose-500 px-3 py-1.5 text-sm font-medium">Delete</button>
+    <a href="{{ object.get_absolute_url }}" class="rounded-md bg-slate-800 hover:bg-slate-700 border border-slate-700 px-3 py-1.5 text-sm">Cancel</a>
+  </form>
+</div>
+{% endblock %}

@@ -1,0 +1,27 @@
+{% extends "base.html" %}
+{% block title %}Tags{% endblock %}
+
+{% block content %}
+<div class="max-w-2xl mx-auto">
+  <div class="flex items-center justify-between mb-4">
+    <h1 class="text-xl font-bold">Tags</h1>
+    <a href="{% url 'cards:tag_create' %}" class="rounded-md bg-indigo-600 hover:bg-indigo-500 px-3 py-1.5 text-sm font-medium">+ New tag</a>
+  </div>
+  <div class="rounded-xl border border-slate-800 divide-y divide-slate-800">
+    {% for tag in tags %}
+      <div class="flex items-center justify-between px-4 py-3">
+        <div class="flex items-center gap-3">
+          {% include "cards/_tag_chip.html" %}
+          <span class="text-sm text-slate-500">{{ tag.n }} card{{ tag.n|pluralize }}</span>
+        </div>
+        <div class="flex items-center gap-3 text-sm">
+          <a href="{% url 'cards:tag_update' tag.pk %}" class="text-indigo-400 hover:underline">Edit</a>
+          <a href="{% url 'cards:tag_delete' tag.pk %}" class="text-rose-400 hover:underline">Delete</a>
+        </div>
+      </div>
+    {% empty %}
+      <p class="px-4 py-6 text-slate-500 text-sm">No tags yet.</p>
+    {% endfor %}
+  </div>
+</div>
+{% endblock %}

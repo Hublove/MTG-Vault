@@ -1,0 +1,79 @@
+{% extends "base.html" %}
+{% block title %}{{ deck.name }}{% endblock %}
+
+{% block content %}
+<div class="flex flex-col lg:flex-row gap-6">
+
+  {# --- Sidebar: commander + stats + actions --- #}
+  <aside class="lg:w-72 shrink-0 space-y-4">
+    <div>
+      <h1 class="text-xl font-bold">{{ deck.name }}</h1>
+      <p class="text-sm text-slate-500">{{ deck.get_format_display }}</p>
+      {% if deck.description %}<p class="text-sm text-slate-400 mt-2">{{ deck.description }}</p>{% endif %}
+    </div>
+
+    {% if commander_entry %}
+      <div class="rounded-xl overflow-hidden border border-amber-800/60 bg-slate-900">
+        {% if commander_entry.card.image_uri %}
+          <img src="{{ commander_entry.card.image_uri }}" alt="{{ commander_entry.card.name }}" class="w-full">
+        {% endif %}
+        <div class="p-2 text-center text-xs text-amber-300">⭐ Commander</div>
+      </div>
+    {% endif %}
+
+    {# --- Owned summary / buy list --- #}
+    <div class="rounded-xl border border-slate-800 bg-slate-900/50 p-4 text-sm space-y-1">
+      <div class="flex justify-between"><span class="text-slate-400">Cards</span><span>{{ summary.total }}</span></div>
+      <div class="flex justify-between"><span class="text-slate-400">Owned</span><span class="text-emerald-400">{{ summary.owned }}</span></div>
+      <div class="flex justify-between"><span class="text-slate-400">Still needed</span><span class="text-amber-400">{{ summary.missing }}</span></div>
+      <div class="border-t border-slate-800 my-2"></div>
+      <div class="flex justify-between"><span class="text-slate-400">To finish (USD)</span><span>${{ summary.need_usd|floatformat:2 }}</span></div>
+      <div class="flex justify-between"><span class="text-slate-400">To finish (CAD)</span><span>${{ summary.need_cad|floatformat:2 }}</span></div>
+    </div>
+
+    <div class="flex flex-col gap-2">
+      <a href="{% url 'decks:bulk_edit' deck.pk %}" class="rounded-md bg-indigo-600 hover:bg-indigo-500 px-3 py-1.5 text-sm font-medium text-center">Edit decklist (bulk)</a>
+      <a href="{% url 'decks:export' deck.pk %}" target="_blank" class="rounded-md bg-slate-800 hover:bg-slate-700 border border-slate-700 px-3 py-1.5 text-sm text-center">Export (plain text)</a>
+      <a href="{% url 'decks:delete' deck.pk %}" class="text-rose-400 hover:underline text-sm text-center">Delete deck</a>
+    </div>
+  </aside>
+
+  {# --- Main: grouped list --- #}
+  <section class="flex-1">
+    {# Group mode toggle #}
+    <div class="flex items-center gap-2 mb-4 text-sm">
+      <span class="text-slate-500">Group by:</span>
+      <a href="?group=type"
+         class="px-3 py-1 rounded-md border {% if group_mode == 'type' %}bg-indigo-600 border-indigo-500{% else %}bg-slate-800 border-slate-700 hover:bg-slate-700{% endif %}">Type</a>
+      <a href="?group=category"
+         class="px-3 py-1 rounded-md border {% if group_mode == 'category' %}bg-indigo-600 border-indigo-500{% else %}bg-slate-800 border-slate-700 hover:bg-slate-700{% endif %}">Category</a>
+    </div>
+
+    {# Commander pinned at top #}
+    {% if commander_entry %}
+      <div class="mb-4">
+        <h2 class="text-xs uppercase tracking-wide text-amber-400 mb-1 px-3">Commander</h2>
+        <div class="rounded-lg border border-amber-800/40 bg-slate-900/40">
+          {% with entry=commander_entry %}{% include "decks/_deck_entry_row.html" %}{% endwith %}
+        </div>
+      </div>
+    {% endif %}
+
+    {% for label, entries in groups %}
+      <div class="mb-4">
+        <h2 class="text-xs uppercase tracking-wide text-slate-500 mb-1 px-3">
+          {{ label }} <span class="text-slate-600">({{ entries|length }})</span>
+        </h2>
+        <div class="rounded-lg border border-slate-800 bg-slate-900/40">
+          {% for entry in entries %}{% include "decks/_deck_entry_row.html" %}{% endfor %}
+        </div>
+      </div>
+    {% empty %}
+      <div class="rounded-xl border border-dashed border-slate-700 p-12 text-center text-slate-400">
+        <p class="mb-3">This deck is empty.</p>
+        <a href="{% url 'decks:bulk_edit' deck.pk %}" class="text-indigo-400 hover:underline">Paste a decklist →</a>
+      </div>
+    {% endfor %}
+  </section>
+</div>
+{% endblock %}

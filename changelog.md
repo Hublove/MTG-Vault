@@ -1,0 +1,39 @@
+# Changelog
+
+## 2026-06-30
+
+- [Changed] The "Good for commanders" section on the card page now shows each suggested commander as its full card image (a small grid of card art linking to the commander's page) instead of a text chip. The + editor is unchanged.
+
+## 2026-06-29
+
+- [Added] Tags now get a random color. New tags created via the card-add or card-detail tag combobox are assigned a random color from a 64-color palette, and all existing tags were backfilled with random colors. The tag edit page now offers an 8×8 grid of swatches to pick from. `Tag.color` is now stored as a hex value and chips render via inline styles (translucent fill + colored text/border), so any of the 64 colors works.
+- [Added] Suggested commanders are now editable on the card page: a **+** button reveals the commander combobox (pre-seeded with the card's current commanders) where you can remove (×) or search Scryfall to add new ones, then Save. Reuses the shared commander combobox + `resolve_commanders`; an empty save clears them.
+- [Added] Commanders are now a first-class space with their own pages. When adding a card you can mark which commanders it's "good for" via a type-ahead multi-select that defaults to your existing commanders (deck commanders + ones you've added) and searches Scryfall (legendary creatures only) to add new ones. Each commander has a page (`/commanders/<id>/`) showing its art/info and a grid of cards suggested for it, plus a Commanders nav section. Modeled as a self-referential `Card.suggested_commanders` M2M; `Card.objects.commanders()` unifies deck commanders and suggested-as-commander cards.
+- [Added] Per-card notes: a notes field when adding a card, shown read-only on the card page until you click a pen icon to unlock editing and Save.
+- [Fixed] The Scryfall Tagger link on the card page now uses Tagger's real URL format — lowercase set code + collector number (e.g. `…/card/blc/14`) — instead of a set-code + name-slug URL that 404'd. Added a `collector_number` field to Card (captured from Scryfall, refreshed by `sync_prices`); cards without a stored collector number fall back to Tagger search. Backfilled existing cards via a bulk sync.
+- [Changed] The card detail page tag editor now uses the same modern type-ahead chip combobox as the add page (current tags pre-seeded as removable chips; type to search, Enter/click to add, “Create …” for new tags, Save persists). The combobox is now a shared `_tag_combobox.html` partial used by both pages, and the old multiselect + `CardTagsForm` were removed. Verified with Playwright.
+- [Changed] Vault color-filter toggles are now tinted per mana color even when unselected (so each WUBRG button is distinguishable at a glance), and the Black toggle fills a true near-black when selected instead of a washed-out grey.
+- [Fixed] Clicking a tag suggestion in the add-card combobox now adds it as a chip (previously only keyboard Enter worked — the hover handler was rebuilding the dropdown and eating the click). Highlighting now moves without rebuilding the list. Also wrapped the add in a transaction and confirmed new tags are only created when the card is actually added to the Vault — typing a new tag and leaving without submitting no longer leaves an orphan tag. Verified with Playwright (click path) and regression tests.
+- [Changed] The add-card tags field is now a modern type-ahead combobox: typing filters existing tags in a dropdown, Enter/click appends the tag as a removable chip, and a “Create …” row lets you add a brand-new tag. Chips are removable (× or Backspace). Frontend-only (vanilla JS); the server still receives the same comma-separated `tags` value. Verified end-to-end with Playwright.
+- [Added] Tags can be applied while adding a card to the Vault: a comma-separated tags field on the add confirm bar (with autocomplete of existing tags). Names that don't exist yet are created automatically; existing ones are reused (matched by slug). The create-or-reuse logic now lives in `Tag.objects.get_or_create_from_csv` and is shared with the card detail tag editor.
+- [Changed] Vault tag filter is now multi-select with an Any/All match toggle — check several tags and show cards matching ANY (OR, default) or ALL (AND) of them. Logic in `CardQuerySet.by_tags`, covered by tests. Replaces the single-select tag dropdown.
+- [Changed] Vault color-filter toggles now light up in their own mana color when selected (W cream, U blue, B dark, R red, G green) instead of a uniform highlight.
+- [Changed] Vault color filter is now multi-select with MTG set-comparison operators. Check any of W/U/B/R/G and pick `=`, `≤`, `<`, `≥`, or `>` against a card's **color identity**: e.g. `≤ GW` returns green, white, green-white, and colorless cards. Subset operators include colorless; `=` with no colors checked shows colorless only. Filters now also persist across pagination. Logic lives in `CardQuerySet.by_color_identity` and is covered by tests.
+- [Fixed] Vault card tiles with tags rendered broken — the name/price/tag floated to the right of the art instead of inside the tile. Cause was a tag-chip `<a>` nested inside the tile's card `<a>` (invalid HTML, which the browser reparents). The tile is now a `<div>` with the art/title as the card link and the tag chips as a sibling block.
+- [Changed] "Add a card" is now a search-and-select flow: type a name and press Enter to see a scrollable grid of every matching card in **full card art** (Scryfall `/cards/search`, one per unique card), click a card to select it, then confirm with a **+ Add to Vault** button that lands on the card's detail page. Replaces the old type-and-instantly-fuzzy-add behavior. Backed by a JSON search endpoint (`/cards/search.json`) and an add-by-Scryfall-id confirm; covered by tests.
+
+## 2026-06-29 (initial build)
+
+- [Added] Project scaffold: Django 5 project `mtg` with `cards` and `decks` apps, SQLite, Tailwind (dark mode) via CDN, and a Dockerized run setup (`Dockerfile`, `docker-compose.yml`, on-demand `sync` service, `.env`).
+- [Added] Core models — `Card` (one row per unique oracle card, with a Vault-membership flag separate from deck usage), `Tag`, `CardTag`, `Deck`, `DeckCard` (per-deck `quantity`, `is_owned`, and `category`).
+- [Added] The Vault: browse collected cards in a responsive grid with filtering (tag, set, type, color, rarity) and sorting (recently-added default, price, name).
+- [Added] Card detail page with USD + computed CAD pricing, tag editor, and four external links (Scryfall, Tagger, 401 Games, Face to Face).
+- [Added] Add-to-Vault flow backed by live Scryfall lookup (exact + typo-tolerant fuzzy).
+- [Added] Tag management (create/edit/delete) and per-card tagging.
+- [Added] Deck builder: list/detail with cards grouped by type (commander pinned on top) or by custom per-deck category, an owned/needed summary with cost-to-finish in USD/CAD, and a per-card "owned" toggle.
+- [Added] Manual commander designation ("Set as commander").
+- [Added] Decklist import (parses quantity, strips set codes/collector numbers/foil markers, skips headers/comments) — good lines import while failures and fuzzy substitutions are reported; deck-imported cards never enter the Vault.
+- [Added] Bulk-edit decklist (text round-trip) that replaces deck contents while preserving `is_owned`/`category` for surviving cards, and clears a removed commander.
+- [Added] Plain-text deck export for Moxfield/Arena.
+- [Added] `sync_prices` management command: downloads the Scryfall "Oracle Cards" bulk file and refreshes prices/data for tracked cards without wiping tags or Vault membership.
+- [Added] Tests for the decklist importer, the `sync_prices` command, and card model logic (type bucketing, CAD conversion, external links).

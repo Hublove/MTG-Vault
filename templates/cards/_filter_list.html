@@ -1,0 +1,13 @@
+{% comment %}
+Dropdown filter over a flat list of strings (value == label).
+Params: label, name, options (iterable of strings), selected.
+{% endcomment %}
+<div>
+  <label class="block text-xs uppercase tracking-wide text-slate-500 mb-1">{{ label }}</label>
+  <select name="{{ name }}" class="w-full rounded-md bg-slate-800 border border-slate-700 px-2 py-1.5 text-sm capitalize">
+    <option value="">All</option>
+    {% for opt in options %}
+      <option value="{{ opt }}" {% if selected == opt %}selected{% endif %}>{{ opt }}</option>
+    {% endfor %}
+  </select>
+</div>

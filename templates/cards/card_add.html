@@ -1,0 +1,146 @@
+{% extends "base.html" %}
+{% block title %}Add a card{% endblock %}
+
+{% block content %}
+<div class="max-w-5xl mx-auto">
+  <h1 class="text-xl font-bold mb-4">Add a card to the Vault</h1>
+
+  {# --- Search box (not inside the POST form; Enter triggers AJAX) --- #}
+  <div class="flex gap-2 mb-2">
+    <input id="card-search" type="text" autofocus autocomplete="off"
+           placeholder="Type a card name and press Enter, e.g. Rhystic Study"
+           class="flex-1 rounded-md bg-slate-800 border border-slate-700 px-3 py-2 text-slate-100
+                  placeholder-slate-500 focus:outline-none focus:ring-2 focus:ring-indigo-500">
+    <button id="search-btn" type="button"
+            class="rounded-md bg-indigo-600 hover:bg-indigo-500 px-4 py-2 text-sm font-medium">Search</button>
+  </div>
+  <p id="search-status" class="text-sm text-slate-500 mb-3 h-5"></p>
+
+  {# --- Scrollable results grid --- #}
+  <div id="results"
+       class="max-h-[60vh] overflow-y-auto rounded-xl border border-slate-800 bg-slate-900/40 p-3
+              grid grid-cols-2 sm:grid-cols-3 md:grid-cols-4 lg:grid-cols-5 gap-3 content-start min-h-[8rem]">
+    <p class="col-span-full text-slate-600 text-sm text-center py-12">
+      Search for a card to see matches with full art.
+    </p>
+  </div>
+
+  {# --- Confirm form: details panel + sticky action bar --- #}
+  <form method="post">
+    {% csrf_token %}
+    <input type="hidden" name="scryfall_id" id="selected-id">
+
+    <div class="mt-3 rounded-xl border border-slate-800 bg-slate-900/50 p-4 space-y-4">
+      <div>
+        <label class="block text-xs uppercase tracking-wide text-slate-500 mb-1">Tags</label>
+        <div class="flex">{% include "cards/_tag_combobox.html" %}</div>
+      </div>
+      <div>
+        <label class="block text-xs uppercase tracking-wide text-slate-500 mb-1">Good for commanders</label>
+        {% include "cards/_commander_combobox.html" %}
+      </div>
+      <div>
+        <label class="block text-xs uppercase tracking-wide text-slate-500 mb-1">Notes</label>
+        <textarea name="notes" rows="3" placeholder="Optional notes about this card…"
+                  class="w-full rounded-md bg-slate-800 border border-slate-700 px-3 py-2 text-sm
+                         text-slate-100 placeholder-slate-500 focus:outline-none focus:ring-2 focus:ring-indigo-500"></textarea>
+      </div>
+    </div>
+
+    <div class="sticky bottom-0 mt-3 flex items-center gap-3 rounded-xl border border-slate-800
+                bg-slate-900 px-4 py-3">
+      <span class="text-sm text-slate-400 shrink-0">Selected:
+        <span id="selected-name" class="text-slate-200">none</span>
+      </span>
+      <button id="add-btn" type="submit" disabled
+              class="ml-auto shrink-0 rounded-md bg-emerald-600 hover:bg-emerald-500 disabled:opacity-40
+                     disabled:cursor-not-allowed px-4 py-2 text-sm font-medium">
+        + Add to Vault
+      </button>
+    </div>
+  </form>
+</div>
+
+<script>
+(function () {
+  const SEARCH_URL = "{% url 'cards:card_search' %}";
+  const input = document.getElementById("card-search");
+  const statusEl = document.getElementById("search-status");
+  const results = document.getElementById("results");
+  const selectedId = document.getElementById("selected-id");
+  const selectedName = document.getElementById("selected-name");
+  const addBtn = document.getElementById("add-btn");
+
+  function setSelection(id, name, tile) {
+    document.querySelectorAll(".result-tile").forEach(t =>
+      t.classList.remove("ring-2", "ring-indigo-400"));
+    tile.classList.add("ring-2", "ring-indigo-400");
+    selectedId.value = id;
+    selectedName.textContent = name;
+    addBtn.disabled = false;
+  }
+
+  function clearSelection() {
+    selectedId.value = "";
+    selectedName.textContent = "none";
+    addBtn.disabled = true;
+  }
+
+  function renderResults(data) {
+    results.innerHTML = "";
+    clearSelection();
+    if (data.error) {
+      statusEl.textContent = "Scryfall error: " + data.error;
+      return;
+    }
+    const cards = data.results || [];
+    if (!cards.length) {
+      statusEl.textContent = "No matches.";
+      results.innerHTML = '<p class="col-span-full text-slate-600 text-sm text-center py-12">No cards matched.</p>';
+      return;
+    }
+    statusEl.textContent = cards.length + " result" + (cards.length === 1 ? "" : "s") +
+      (data.truncated ? " (showing the first page — narrow your search for more)" : "");
+
+    for (const c of cards) {
+      const tile = document.createElement("button");
+      tile.type = "button";
+      tile.className = "result-tile group block rounded-lg overflow-hidden bg-slate-800 " +
+        "border border-slate-700 hover:border-indigo-500 transition text-left";
+      const price = c.price_usd ? "$" + c.price_usd : "—";
+      const art = c.image_uri
+        ? '<img src="' + c.image_uri + '" alt="" loading="lazy" class="w-full aspect-[63/88] object-cover">'
+        : '<div class="w-full aspect-[63/88] flex items-center justify-center text-slate-500 text-xs p-2 text-center">' +
+            c.name + '</div>';
+      tile.innerHTML = art +
+        '<div class="p-1.5">' +
+          '<div class="text-xs font-medium truncate">' + c.name + '</div>' +
+          '<div class="flex justify-between text-[11px] text-slate-400">' +
+            '<span>' + (c.set_code || "") + '</span><span>' + price + '</span>' +
+          '</div>' +
+        '</div>';
+      tile.addEventListener("click", () => setSelection(c.scryfall_id, c.name, tile));
+      results.appendChild(tile);
+    }
+  }
+
+  async function runSearch() {
+    const q = input.value.trim();
+    if (!q) return;
+    statusEl.textContent = "Searching…";
+    results.innerHTML = "";
+    try {
+      const resp = await fetch(SEARCH_URL + "?q=" + encodeURIComponent(q));
+      renderResults(await resp.json());
+    } catch (err) {
+      statusEl.textContent = "Network error. Try again.";
+    }
+  }
+
+  input.addEventListener("keydown", (e) => {
+    if (e.key === "Enter") { e.preventDefault(); runSearch(); }
+  });
+  document.getElementById("search-btn").addEventListener("click", runSearch);
+})();
+</script>
+{% endblock %}

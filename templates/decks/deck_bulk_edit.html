@@ -1,0 +1,18 @@
+{% extends "base.html" %}
+{% block title %}Edit {{ deck.name }}{% endblock %}
+
+{% block content %}
+<div class="max-w-2xl mx-auto">
+  <h1 class="text-xl font-bold mb-1">Edit decklist — {{ deck.name }}</h1>
+  <p class="text-sm text-slate-500 mb-4">{{ form.decklist.help_text }}</p>
+  <form method="post" class="space-y-4">
+    {% csrf_token %}
+    {{ form.decklist }}
+    {% for err in form.decklist.errors %}<p class="text-rose-400 text-xs">{{ err }}</p>{% endfor %}
+    <div class="flex gap-2">
+      <button class="rounded-md bg-indigo-600 hover:bg-indigo-500 px-3 py-1.5 text-sm font-medium">Save decklist</button>
+      <a href="{{ deck.get_absolute_url }}" class="rounded-md bg-slate-800 hover:bg-slate-700 border border-slate-700 px-3 py-1.5 text-sm">Cancel</a>
+    </div>
+  </form>
+</div>
+{% endblock %}

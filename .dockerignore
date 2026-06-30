@@ -1,0 +1,11 @@
+.git
+.gitignore
+.claude
+*.pyc
+__pycache__/
+.env
+data/
+*.sqlite3
+.venv/
+venv/
+node_modules/

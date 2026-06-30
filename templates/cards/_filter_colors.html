@@ -1,0 +1,25 @@
+{% comment %}
+Multi-select color-identity filter with a set-comparison operator.
+Params (from VaultListView context): color_ops, current_color_op, color_choices,
+selected_colors. Submits `color_op` (one value) + `color` (multi) on Apply.
+{% endcomment %}
+<div>
+  <label class="block text-xs uppercase tracking-wide text-slate-500 mb-1">Color identity</label>
+  <select name="color_op" class="w-full rounded-md bg-slate-800 border border-slate-700 px-2 py-1.5 text-sm mb-2">
+    {% for value, text in color_ops %}
+      <option value="{{ value }}" {% if current_color_op == value %}selected{% endif %}>{{ text }}</option>
+    {% endfor %}
+  </select>
+  <div class="flex gap-1">
+    {% for code, name, swatch in color_choices %}
+      <label title="{{ name }}"
+             class="flex-1 cursor-pointer select-none text-center rounded-md border
+                    bg-slate-800 py-1.5 text-sm font-semibold {{ swatch }}">
+        <input type="checkbox" name="color" value="{{ code }}" class="sr-only"
+               {% if code in selected_colors %}checked{% endif %}>
+        {{ code }}
+      </label>
+    {% endfor %}
+  </div>
+  <p class="text-[11px] text-slate-500 mt-1">“= ” with none checked = colorless only.</p>
+</div>

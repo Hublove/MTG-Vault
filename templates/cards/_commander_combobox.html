@@ -1,0 +1,146 @@
+{% comment %}
+Commander multi-select combobox.
+
+Context params:
+  commander_options  – existing commanders: [{name, scryfall_id, set_code}, …]. Shown
+                       by default (when the input is empty).
+  initial_commanders – [{name, scryfall_id}] to pre-seed as chips. Optional.
+
+Emits a hidden <input name="commanders"> (value = scryfall_id) per chosen commander —
+the add view resolves these to Card rows via resolve_commanders(). Typing also
+searches Scryfall (legendary creatures only) for new commanders to add.
+{% endcomment %}
+<div id="cmd-field"
+     class="relative flex flex-wrap items-center gap-1 rounded-md bg-slate-800 border border-slate-700
+            px-2 py-1 focus-within:ring-2 focus-within:ring-indigo-500 cursor-text">
+  <span id="cmd-chips" class="contents"></span>
+  <input id="cmd-input" type="text" autocomplete="off" placeholder="Search commanders…"
+         class="flex-1 min-w-[8rem] bg-transparent text-sm text-slate-100 placeholder-slate-500
+                focus:outline-none py-1">
+  <ul id="cmd-dropdown"
+      class="hidden absolute top-full mt-1 left-0 w-full max-h-56 overflow-y-auto z-30 rounded-md
+             border border-slate-700 bg-slate-900 shadow-lg py-1 text-sm"></ul>
+</div>
+
+{{ commander_options|json_script:"cmd-options" }}
+{{ initial_commanders|default:''|json_script:"cmd-initial" }}
+
+<script>
+(function () {
+  const known = JSON.parse(document.getElementById("cmd-options").textContent || "[]");
+  const seed = JSON.parse(document.getElementById("cmd-initial").textContent || "null") || [];
+  const field = document.getElementById("cmd-field");
+  const chipsBox = document.getElementById("cmd-chips");
+  const input = document.getElementById("cmd-input");
+  const dropdown = document.getElementById("cmd-dropdown");
+
+  const chosen = [];        // [{name, scryfall_id}]
+  let options = [];         // current dropdown rows [{name, scryfall_id, source}]
+  let active = -1;
+  let timer = null;
+
+  const has = (id) => chosen.some((c) => c.scryfall_id === id);
+
+  function renderChips() {
+    chipsBox.innerHTML = "";
+    chosen.forEach((c, i) => {
+      const chip = document.createElement("span");
+      chip.className = "inline-flex items-center gap-1 rounded-full bg-indigo-600/80 text-white " +
+        "px-2 py-0.5 text-xs font-medium";
+      chip.innerHTML = "<span></span>" +
+        "<button type='button' class='hover:text-rose-200' aria-label='remove'>&times;</button>" +
+        "<input type='hidden' name='commanders'>";
+      chip.firstChild.textContent = c.name;
+      chip.querySelector("input").value = c.scryfall_id;
+      chip.querySelector("button").addEventListener("click", (e) => {
+        e.stopPropagation(); chosen.splice(i, 1); renderChips();
+      });
+      chipsBox.appendChild(chip);
+    });
+  }
+
+  function addCommander(c) {
+    if (c && c.scryfall_id && !has(c.scryfall_id)) chosen.push({ name: c.name, scryfall_id: c.scryfall_id });
+    input.value = ""; renderChips(); closeDropdown();
+  }
+
+  function closeDropdown() { dropdown.classList.add("hidden"); options = []; active = -1; }
+
+  const BASE = "px-3 py-1.5 cursor-pointer flex justify-between gap-2";
+  const ON = "bg-indigo-600 text-white", OFF = "hover:bg-slate-800";
+
+  function render() {
+    dropdown.innerHTML = "";
+    if (!options.length) return closeDropdown();
+    options.forEach((opt, i) => {
+      const li = document.createElement("li");
+      li.className = BASE + " " + (i === active ? ON : OFF);
+      const tag = opt.source === "scryfall" ? "<span class='text-[11px] text-slate-500'>Scryfall</span>" : "";
+      li.innerHTML = "<span></span>" + tag;
+      li.firstChild.textContent = opt.name;
+      li.addEventListener("mousedown", (e) => { e.preventDefault(); addCommander(opt); });
+      li.addEventListener("mouseenter", () => setActive(i));
+      dropdown.appendChild(li);
+    });
+    active = 0; setActive(0);
+    dropdown.classList.remove("hidden");
+  }
+
+  function setActive(i) {
+    active = i;
+    Array.from(dropdown.children).forEach((li, idx) => {
+      li.className = BASE + " " + (idx === active ? ON : OFF);
+    });
+  }
+
+  function localMatches(q) {
+    return known
+      .filter((c) => c.name.toLowerCase().includes(q) && !has(c.scryfall_id))
+      .map((c) => ({ name: c.name, scryfall_id: c.scryfall_id, source: "local" }));
+  }
+
+  function openLocal() {
+    options = localMatches(input.value.trim().toLowerCase());
+    render();
+  }
+
+  function search() {
+    const q = input.value.trim();
+    if (!q) return openLocal();
+    options = localMatches(q.toLowerCase());
+    render();
+    // Debounced Scryfall search for new (legendary) commanders.
+    clearTimeout(timer);
+    timer = setTimeout(async () => {
+      try {
+        const resp = await fetch("{% url 'cards:card_search' %}?commanders=1&q=" + encodeURIComponent(q));
+        const data = await resp.json();
+        const seen = new Set(options.map((o) => o.scryfall_id).concat(chosen.map((c) => c.scryfall_id)));
+        (data.results || []).forEach((r) => {
+          if (!seen.has(r.scryfall_id)) {
+            options.push({ name: r.name, scryfall_id: r.scryfall_id, source: "scryfall" });
+            seen.add(r.scryfall_id);
+          }
+        });
+        if (document.activeElement === input) render();
+      } catch (e) { /* network hiccup: keep local matches */ }
+    }, 250);
+  }
+
+  field.addEventListener("click", () => input.focus());
+  input.addEventListener("focus", openLocal);
+  input.addEventListener("input", search);
+  input.addEventListener("keydown", (e) => {
+    const open = !dropdown.classList.contains("hidden");
+    if (e.key === "ArrowDown" && open) { e.preventDefault(); setActive((active + 1) % options.length); }
+    else if (e.key === "ArrowUp" && open) { e.preventDefault(); setActive((active - 1 + options.length) % options.length); }
+    else if (e.key === "Enter") { e.preventDefault(); if (open && active >= 0) addCommander(options[active]); }
+    else if (e.key === "Escape") { closeDropdown(); }
+    else if (e.key === "Backspace" && !input.value && chosen.length) { chosen.pop(); renderChips(); }
+  });
+  document.addEventListener("click", (e) => { if (!field.contains(e.target)) closeDropdown(); });
+
+  seed.forEach((c) => { if (c && c.scryfall_id) chosen.push({ name: c.name, scryfall_id: c.scryfall_id }); });
+  renderChips();
+})();
+</script>

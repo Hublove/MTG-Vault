@@ -1,0 +1,29 @@
+# Single-user MTG manager. `docker compose up --build` to run.
+services:
+  web:
+    build: .
+    ports:
+      - "8000:8000"
+    env_file:
+      - .env
+    volumes:
+      # Live code edits without rebuilds.
+      - .:/app
+      # Persist the SQLite DB + downloaded Scryfall bulk JSON across rebuilds.
+      - mtg_data:/app/data
+    restart: unless-stopped
+
+  # On-demand price refresh: `docker compose run --rm sync`
+  # Gated behind a profile so `up` does not start it as a long-running service.
+  sync:
+    build: .
+    profiles: ["tools"]
+    env_file:
+      - .env
+    volumes:
+      - .:/app
+      - mtg_data:/app/data
+    command: ["python", "manage.py", "sync_prices"]
+
+volumes:
+  mtg_data:

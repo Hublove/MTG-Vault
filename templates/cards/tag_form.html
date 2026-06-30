@@ -1,0 +1,49 @@
+{% extends "base.html" %}
+{% block title %}{% if object %}Edit tag{% else %}New tag{% endif %}{% endblock %}
+
+{% block content %}
+<div class="max-w-md mx-auto">
+  <h1 class="text-xl font-bold mb-4">{% if object %}Edit tag{% else %}New tag{% endif %}</h1>
+  <form method="post" class="space-y-4 rounded-xl border border-slate-800 bg-slate-900/50 p-6">
+    {% csrf_token %}
+    <div>
+      <label class="block text-sm text-slate-300 mb-1">Name</label>
+      {{ form.name }}
+      {% for err in form.name.errors %}<p class="text-rose-400 text-xs mt-1">{{ err }}</p>{% endfor %}
+    </div>
+    <div>
+      <label class="block text-sm text-slate-300 mb-1">Color</label>
+      {{ form.color }}  {# hidden input #id_color, set by the grid below #}
+      <div id="color-grid" class="grid grid-cols-8 gap-1">
+        {% for hex in tag_palette %}
+          <button type="button" data-color="{{ hex }}" title="{{ hex }}"
+                  class="swatch aspect-square rounded-md border-2 border-transparent hover:scale-110 transition"
+                  style="background-color: {{ hex }};"></button>
+        {% endfor %}
+      </div>
+      <p class="text-xs text-slate-500 mt-1">Pick a color for this tag's chip.</p>
+    </div>
+    <div class="flex gap-2">
+      <button class="rounded-md bg-indigo-600 hover:bg-indigo-500 px-3 py-1.5 text-sm font-medium">Save</button>
+      <a href="{% url 'cards:tag_list' %}" class="rounded-md bg-slate-800 hover:bg-slate-700 border border-slate-700 px-3 py-1.5 text-sm">Cancel</a>
+    </div>
+  </form>
+</div>
+
+<script>
+(function () {
+  const hidden = document.getElementById("id_color");
+  const swatches = Array.from(document.querySelectorAll("#color-grid .swatch"));
+  function select(btn) {
+    swatches.forEach((s) => s.classList.remove("border-white", "ring-2", "ring-white"));
+    btn.classList.add("border-white", "ring-2", "ring-white");
+    hidden.value = btn.dataset.color;
+  }
+  swatches.forEach((btn) => btn.addEventListener("click", () => select(btn)));
+  // Preselect the current/initial color (case-insensitive hex match).
+  const cur = (hidden.value || "").toLowerCase();
+  const match = swatches.find((s) => s.dataset.color.toLowerCase() === cur);
+  if (match) select(match);
+})();
+</script>
+{% endblock %}

@@ -1,0 +1,36 @@
+{% comment %}
+One deck card row. Expects `entry` (DeckCard) and `deck` in context.
+{% endcomment %}
+<div class="flex items-center gap-3 px-3 py-1.5 rounded-md hover:bg-slate-800/50 group">
+  {# Owned toggle #}
+  <form method="post" action="{% url 'decks:toggle_owned' entry.pk %}">
+    {% csrf_token %}
+    <input type="hidden" name="next" value="{{ request.get_full_path }}">
+    <button type="submit" title="Toggle owned"
+            class="w-5 h-5 rounded border flex items-center justify-center text-xs
+            {% if entry.is_owned %}bg-emerald-600 border-emerald-500 text-white{% else %}border-slate-600 text-transparent hover:border-slate-400{% endif %}">
+      ✓
+    </button>
+  </form>
+
+  <span class="w-6 text-right text-slate-400 text-sm tabular-nums">{{ entry.quantity }}</span>
+
+  <a href="{{ entry.card.get_absolute_url }}"
+     class="flex-1 text-sm truncate {% if not entry.is_owned %}text-slate-200{% else %}text-slate-400{% endif %} hover:text-indigo-300">
+    {{ entry.card.name }}
+  </a>
+
+  {% if entry.card.primary_type %}
+    <span class="hidden sm:inline text-xs text-slate-600">{{ entry.card.set_code }}</span>
+  {% endif %}
+
+  <span class="w-16 text-right text-xs text-slate-500 tabular-nums">
+    {% if entry.card.price_usd %}${{ entry.card.price_usd }}{% else %}—{% endif %}
+  </span>
+
+  {# Set/clear commander #}
+  <form method="post" action="{% url 'decks:set_commander' entry.pk %}" class="opacity-0 group-hover:opacity-100 transition">
+    {% csrf_token %}
+    <button type="submit" title="Set as commander" class="text-xs text-amber-400 hover:text-amber-300">⭐</button>
+  </form>
+</div>

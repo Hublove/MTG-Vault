@@ -1,0 +1,183 @@
+{% extends "base.html" %}
+{% block title %}{{ card.name }}{% endblock %}
+
+{% block content %}
+<div class="grid md:grid-cols-[300px_1fr] gap-8">
+
+  {# --- Image --- #}
+  <div>
+    <div class="rounded-xl overflow-hidden border border-slate-800 bg-slate-900">
+      {% if card.image_uri %}
+        <img src="{{ card.image_uri }}" alt="{{ card.name }}" class="w-full">
+      {% else %}
+        <div class="aspect-[63/88] flex items-center justify-center text-slate-600">No image</div>
+      {% endif %}
+    </div>
+  </div>
+
+  {# --- Details --- #}
+  <div class="space-y-6">
+    <div>
+      <h1 class="text-2xl font-bold">{{ card.name }}</h1>
+      <p class="text-slate-400">{{ card.type_line }}</p>
+      <p class="text-sm text-slate-500 mt-1">{{ card.set_name }} ({{ card.set_code }}) · {{ card.rarity|capfirst }}</p>
+    </div>
+
+    <div class="flex gap-6">
+      <div>
+        <div class="text-xs uppercase tracking-wide text-slate-500">USD</div>
+        <div class="text-xl font-semibold">{% if card.price_usd %}${{ card.price_usd }}{% else %}—{% endif %}</div>
+      </div>
+      <div>
+        <div class="text-xs uppercase tracking-wide text-slate-500">CAD (est.)</div>
+        <div class="text-xl font-semibold">{% if card.price_cad %}${{ card.price_cad }}{% else %}—{% endif %}</div>
+      </div>
+      {% if card.last_price_update %}
+        <div class="text-xs text-slate-600 self-end">updated {{ card.last_price_update|date:"M j, Y" }}</div>
+      {% endif %}
+    </div>
+
+    {# --- External links --- #}
+    <div class="flex flex-wrap gap-2">
+      {% for label, url in card.external_links %}
+        <a href="{{ url }}" target="_blank" rel="noopener"
+           class="rounded-md bg-slate-800 hover:bg-slate-700 border border-slate-700 px-3 py-1.5 text-sm">
+          {{ label }} ↗
+        </a>
+      {% endfor %}
+    </div>
+
+    {# --- Tags editor (modern type-ahead chip combobox) --- #}
+    <div class="rounded-xl border border-slate-800 bg-slate-900/50 p-4">
+      <h2 class="text-sm font-semibold text-slate-300 mb-2">Tags</h2>
+      <form method="post" action="{% url 'cards:card_tags' card.pk %}" class="flex items-start gap-2">
+        {% csrf_token %}
+        {% include "cards/_tag_combobox.html" with initial_tag_names=initial_tag_names %}
+        <button class="shrink-0 rounded-md bg-indigo-600 hover:bg-indigo-500 px-3 py-1.5 text-sm font-medium">Save</button>
+      </form>
+      <p class="text-[11px] text-slate-500 mt-1">Type to search tags, Enter/click to add, × to remove. New tags are created on save.</p>
+    </div>
+
+    {# --- Suggested commanders (editable via + button) --- #}
+    <div class="rounded-xl border border-slate-800 bg-slate-900/50 p-4">
+      <div class="flex items-center justify-between mb-2">
+        <h2 class="text-sm font-semibold text-slate-300">Good for commanders</h2>
+        <button type="button" id="cmd-add" title="Edit commanders"
+                class="w-6 h-6 rounded-md border border-slate-600 text-slate-300 hover:bg-slate-700
+                       hover:text-white flex items-center justify-center text-sm leading-none">+</button>
+      </div>
+
+      {# Read-only: full commander card art #}
+      <div id="cmd-readonly">
+        {% if card.suggested_commanders.all %}
+          <div class="grid grid-cols-3 sm:grid-cols-4 gap-2">
+            {% for cmd in card.suggested_commanders.all %}
+              <a href="{% url 'cards:commander_detail' cmd.pk %}"
+                 class="group block rounded-lg overflow-hidden bg-slate-800 border border-slate-700
+                        hover:border-amber-500 transition">
+                <div class="aspect-[63/88] bg-slate-800">
+                  {% if cmd.image_uri %}
+                    <img src="{{ cmd.image_uri }}" alt="{{ cmd.name }}" loading="lazy"
+                         class="w-full h-full object-cover group-hover:scale-[1.02] transition">
+                  {% else %}
+                    <div class="w-full h-full flex items-center justify-center text-slate-500 text-xs p-2 text-center">
+                      {{ cmd.name }}
+                    </div>
+                  {% endif %}
+                </div>
+                <div class="px-1.5 py-1 text-[11px] text-amber-200 truncate">⭐ {{ cmd.name }}</div>
+              </a>
+            {% endfor %}
+          </div>
+        {% else %}
+          <span class="text-slate-500 text-sm">None yet — click + to add some.</span>
+        {% endif %}
+      </div>
+
+      {# Editor (hidden until + is clicked) #}
+      <form method="post" action="{% url 'cards:card_commanders' card.pk %}" id="cmd-editor" class="hidden">
+        {% csrf_token %}
+        {% include "cards/_commander_combobox.html" with initial_commanders=initial_commanders %}
+        <div class="mt-2 flex gap-2">
+          <button class="rounded-md bg-indigo-600 hover:bg-indigo-500 px-3 py-1.5 text-sm font-medium">Save commanders</button>
+          <button type="button" id="cmd-cancel"
+                  class="rounded-md bg-slate-800 hover:bg-slate-700 border border-slate-700 px-3 py-1.5 text-sm">Cancel</button>
+        </div>
+      </form>
+    </div>
+
+    {# --- Notes (read-only until the pen unlocks editing) --- #}
+    <div class="rounded-xl border border-slate-800 bg-slate-900/50 p-4">
+      <div class="flex items-center justify-between mb-2">
+        <h2 class="text-sm font-semibold text-slate-300">Notes</h2>
+        <button type="button" id="notes-pen" title="Edit notes"
+                class="text-slate-400 hover:text-indigo-300 text-sm">✏️</button>
+      </div>
+      <form method="post" action="{% url 'cards:card_notes' card.pk %}">
+        {% csrf_token %}
+        <textarea name="notes" id="notes-area" rows="4" readonly
+                  placeholder="No notes yet."
+                  class="w-full rounded-md bg-slate-800/60 border border-slate-700 px-3 py-2 text-sm
+                         text-slate-100 placeholder-slate-500 read-only:opacity-80
+                         focus:outline-none focus:ring-2 focus:ring-indigo-500">{{ card.notes }}</textarea>
+        <div id="notes-actions" class="hidden mt-2 flex gap-2">
+          <button class="rounded-md bg-indigo-600 hover:bg-indigo-500 px-3 py-1.5 text-sm font-medium">Save notes</button>
+          <button type="button" id="notes-cancel"
+                  class="rounded-md bg-slate-800 hover:bg-slate-700 border border-slate-700 px-3 py-1.5 text-sm">Cancel</button>
+        </div>
+      </form>
+    </div>
+
+    <div class="flex items-center gap-3 pt-2">
+      {% if card.in_vault %}
+        <form method="post" action="{% url 'cards:card_remove' card.pk %}"
+              onsubmit="return confirm('Remove {{ card.name }} from the Vault?');">
+          {% csrf_token %}
+          <button class="text-sm text-rose-400 hover:underline">Remove from Vault</button>
+        </form>
+      {% endif %}
+      <a href="{% url 'cards:vault' %}" class="text-sm text-slate-400 hover:underline">← Back to Vault</a>
+    </div>
+  </div>
+</div>
+
+<script>
+// Notes: locked (read-only) until the pen unlocks editing.
+(function () {
+  const pen = document.getElementById("notes-pen");
+  const area = document.getElementById("notes-area");
+  const actions = document.getElementById("notes-actions");
+  const cancel = document.getElementById("notes-cancel");
+  const original = area.value;
+
+  function unlock() {
+    area.readOnly = false;
+    area.classList.remove("bg-slate-800/60");
+    area.classList.add("bg-slate-800");
+    actions.classList.remove("hidden");
+    area.focus();
+  }
+  function lock() {
+    area.value = original;
+    area.readOnly = true;
+    area.classList.add("bg-slate-800/60");
+    area.classList.remove("bg-slate-800");
+    actions.classList.add("hidden");
+  }
+  pen.addEventListener("click", () => area.readOnly ? unlock() : lock());
+  cancel.addEventListener("click", lock);
+})();
+
+// Commanders: + toggles the editor (combobox) vs the read-only chips.
+(function () {
+  const add = document.getElementById("cmd-add");
+  const readonly = document.getElementById("cmd-readonly");
+  const editor = document.getElementById("cmd-editor");
+  const cancel = document.getElementById("cmd-cancel");
+  function show() { editor.classList.remove("hidden"); readonly.classList.add("hidden"); }
+  function hide() { editor.classList.add("hidden"); readonly.classList.remove("hidden"); }
+  add.addEventListener("click", () => editor.classList.contains("hidden") ? show() : hide());
+  cancel.addEventListener("click", hide);
+})();
+</script>
+{% endblock %}

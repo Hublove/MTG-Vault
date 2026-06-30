@@ -1,0 +1,10 @@
+{% comment %}A single tag chip. Expects `tag` in context.
+
+`tag.color` is a hex (#RRGGBB). We render a translucent fill + colored text and
+border by appending an alpha byte (22 ≈ 13%, 66 ≈ 40%) to make an #RRGGBBAA value.
+{% endcomment %}
+<a href="{% url 'cards:vault' %}?tag={{ tag.slug }}"
+   class="inline-flex items-center rounded-full px-2 py-0.5 text-xs font-medium border hover:brightness-125"
+   style="background-color: {{ tag.color }}22; color: {{ tag.color }}; border-color: {{ tag.color }}66;">
+  {{ tag.name }}
+</a>

@@ -1,0 +1,161 @@
+{% comment %}
+Reusable type-ahead tag combobox.
+
+Context params:
+  all_tag_names     – list of existing tag names (suggestions). Required.
+  initial_tag_names – list of names to pre-seed as chips. Optional (default none).
+  dropup            – if truthy, the suggestion dropdown opens upward (use on the
+                      add page's bottom-sticky bar). Default: opens downward.
+
+Emits a hidden <input name="tags"> holding the comma-joined chosen tags — the
+server reads it via Tag.objects.get_or_create_from_csv. One instance per page
+(fixed element IDs).
+{% endcomment %}
+<input type="hidden" name="tags" id="tags-value">
+<div id="tag-field"
+     class="relative flex-1 min-w-0 flex flex-wrap items-center gap-1 rounded-md bg-slate-800
+            border border-slate-700 px-2 py-1 focus-within:ring-2 focus-within:ring-indigo-500 cursor-text">
+  <input id="tag-input" type="text" autocomplete="off" placeholder="Add tags…"
+         class="flex-1 min-w-[6rem] bg-transparent text-sm text-slate-100 placeholder-slate-500
+                focus:outline-none py-1">
+  <ul id="tag-dropdown"
+      class="hidden absolute {% if dropup %}bottom-full mb-1{% else %}top-full mt-1{% endif %}
+             left-0 w-full max-h-48 overflow-y-auto z-30 rounded-md border border-slate-700
+             bg-slate-900 shadow-lg py-1 text-sm"></ul>
+</div>
+
+{{ all_tag_names|json_script:"all-tag-names" }}
+{{ initial_tag_names|default:''|json_script:"initial-tags" }}
+
+<script>
+// Type-ahead tag combobox: filter existing tags as you type, Enter/click to add
+// a chip (or create a new one); chips are removable; a hidden CSV input named
+// "tags" stays in sync for the server. Pre-seeds chips from initial-tags.
+(function () {
+  const known = JSON.parse(document.getElementById("all-tag-names").textContent || "[]");
+  const seed = JSON.parse(document.getElementById("initial-tags").textContent || "null") || [];
+  const field = document.getElementById("tag-field");
+  const input = document.getElementById("tag-input");
+  const dropdown = document.getElementById("tag-dropdown");
+  const hidden = document.getElementById("tags-value");
+
+  const chosen = [];      // chip labels, in order
+  let active = -1;        // highlighted dropdown row index
+  let options = [];       // current dropdown entries: {label, create}
+
+  const norm = (s) => s.trim().toLowerCase();
+
+  function syncHidden() {
+    hidden.value = chosen.join(",");
+  }
+
+  function renderChips() {
+    field.querySelectorAll(".tag-chip").forEach((n) => n.remove());
+    chosen.forEach((label, i) => {
+      const chip = document.createElement("span");
+      chip.className = "tag-chip inline-flex items-center gap-1 rounded-full bg-indigo-600/80 " +
+        "text-white px-2 py-0.5 text-xs font-medium";
+      chip.innerHTML = "<span></span><button type='button' class='hover:text-rose-200' " +
+        "aria-label='remove'>&times;</button>";
+      chip.firstChild.textContent = label;
+      chip.querySelector("button").addEventListener("click", (e) => {
+        e.stopPropagation();
+        chosen.splice(i, 1);
+        renderChips();
+      });
+      field.insertBefore(chip, input);
+    });
+    syncHidden();
+  }
+
+  function addTag(label) {
+    label = label.trim();
+    if (!label) return;
+    if (!chosen.some((c) => norm(c) === norm(label))) chosen.push(label);
+    input.value = "";
+    renderChips();
+    closeDropdown();
+  }
+
+  function closeDropdown() {
+    dropdown.classList.add("hidden");
+    options = [];
+    active = -1;
+  }
+
+  function openDropdown() {
+    const q = norm(input.value);
+    const matches = known.filter(
+      (name) => name.toLowerCase().includes(q) && !chosen.some((c) => norm(c) === norm(name))
+    );
+    options = matches.map((label) => ({ label, create: false }));
+    // Offer to create when the typed text isn't already an exact known/chosen tag.
+    const exact = input.value.trim() &&
+      (known.some((n) => norm(n) === q) || chosen.some((c) => norm(c) === q));
+    if (input.value.trim() && !exact) {
+      options.push({ label: input.value.trim(), create: true });
+    }
+    if (!options.length) return closeDropdown();
+    active = 0;
+    renderSuggestions();
+    dropdown.classList.remove("hidden");
+  }
+
+  const BASE_ROW = "px-3 py-1.5 cursor-pointer";
+  const ACTIVE_ROW = "bg-indigo-600 text-white";
+  const IDLE_ROW = "hover:bg-slate-800";
+
+  // Build the rows ONCE per query. Hovering only moves the highlight (setActive)
+  // — it must NOT rebuild the list, or replacing the node under the cursor
+  // refires mouseenter and a click can never land on a stable element.
+  function renderSuggestions() {
+    dropdown.innerHTML = "";
+    options.forEach((opt, i) => {
+      const li = document.createElement("li");
+      li.className = BASE_ROW + " " + (i === active ? ACTIVE_ROW : IDLE_ROW);
+      li.textContent = opt.create ? 'Create “' + opt.label + '”' : opt.label;
+      li.addEventListener("mousedown", (e) => { e.preventDefault(); addTag(opt.label); });
+      li.addEventListener("mouseenter", () => setActive(i));
+      dropdown.appendChild(li);
+    });
+  }
+
+  function setActive(i) {
+    active = i;
+    Array.from(dropdown.children).forEach((li, idx) => {
+      li.className = BASE_ROW + " " + (idx === active ? ACTIVE_ROW : IDLE_ROW);
+    });
+  }
+
+  field.addEventListener("click", () => input.focus());
+
+  input.addEventListener("input", openDropdown);
+  input.addEventListener("focus", () => { if (input.value.trim()) openDropdown(); });
+
+  input.addEventListener("keydown", (e) => {
+    const open = !dropdown.classList.contains("hidden");
+    if (e.key === "ArrowDown" && open) {
+      e.preventDefault(); setActive((active + 1) % options.length);
+    } else if (e.key === "ArrowUp" && open) {
+      e.preventDefault(); setActive((active - 1 + options.length) % options.length);
+    } else if (e.key === "Enter" || e.key === ",") {
+      // Never submit the form from the tag input; commit a tag instead.
+      e.preventDefault();
+      if (open && active >= 0) addTag(options[active].label);
+      else if (input.value.trim()) addTag(input.value);
+    } else if (e.key === "Escape") {
+      closeDropdown();
+    } else if (e.key === "Backspace" && !input.value && chosen.length) {
+      chosen.pop(); renderChips();
+    }
+  });
+
+  document.addEventListener("click", (e) => {
+    if (!field.contains(e.target)) closeDropdown();
+  });
+
+  // Pre-seed chips (e.g. a card's existing tags on the detail page).
+  seed.forEach((t) => { if (t) chosen.push(t); });
+  renderChips();
+})();
+</script>

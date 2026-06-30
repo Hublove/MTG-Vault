@@ -1,0 +1,66 @@
+{% extends "base.html" %}
+{% block title %}The Vault{% endblock %}
+
+{% block content %}
+<div class="flex flex-col lg:flex-row gap-6">
+
+  {# --- Filter sidebar --- #}
+  <aside class="lg:w-64 shrink-0">
+    <form method="get" class="space-y-4 lg:sticky lg:top-20">
+      <div>
+        <label class="block text-xs uppercase tracking-wide text-slate-500 mb-1">Sort</label>
+        <select name="sort" onchange="this.form.submit()"
+                class="w-full rounded-md bg-slate-800 border border-slate-700 px-2 py-1.5 text-sm">
+          <option value="recent" {% if current.sort == 'recent' or not current.sort %}selected{% endif %}>Recently added</option>
+          <option value="price_desc" {% if current.sort == 'price_desc' %}selected{% endif %}>Price: high → low</option>
+          <option value="price_asc" {% if current.sort == 'price_asc' %}selected{% endif %}>Price: low → high</option>
+          <option value="name" {% if current.sort == 'name' %}selected{% endif %}>Name</option>
+        </select>
+      </div>
+
+      {% include "cards/_filter_tags.html" %}
+      {% include "cards/_filter_pairs.html" with label="Set" name="set" pairs=sets selected=current.set %}
+      {% include "cards/_filter_pairs.html" with label="Type" name="type" pairs=types selected=current.type %}
+      {% include "cards/_filter_colors.html" %}
+      {% include "cards/_filter_list.html" with label="Rarity" name="rarity" options=rarities selected=current.rarity %}
+
+      <div class="flex gap-2">
+        <button type="submit" class="flex-1 rounded-md bg-indigo-600 hover:bg-indigo-500 px-3 py-1.5 text-sm font-medium">Apply</button>
+        <a href="{% url 'cards:vault' %}" class="rounded-md bg-slate-800 hover:bg-slate-700 px-3 py-1.5 text-sm border border-slate-700">Clear</a>
+      </div>
+    </form>
+  </aside>
+
+  {# --- Card grid --- #}
+  <section class="flex-1">
+    <div class="flex items-center justify-between mb-4">
+      <h1 class="text-xl font-bold">The Vault <span class="text-slate-500 text-base font-normal">({{ paginator.count }})</span></h1>
+    </div>
+
+    {% if cards %}
+      <div class="grid grid-cols-2 sm:grid-cols-3 md:grid-cols-4 xl:grid-cols-5 gap-3">
+        {% for card in cards %}{% include "cards/_card_grid_item.html" %}{% endfor %}
+      </div>
+
+      {% if is_paginated %}
+        <div class="flex items-center justify-center gap-3 mt-6 text-sm">
+          {% if page_obj.has_previous %}
+            <a href="?{% if current.urlencode %}{{ current.urlencode }}&{% endif %}page={{ page_obj.previous_page_number }}"
+               class="px-3 py-1.5 rounded-md bg-slate-800 border border-slate-700">Prev</a>
+          {% endif %}
+          <span class="text-slate-400">Page {{ page_obj.number }} / {{ paginator.num_pages }}</span>
+          {% if page_obj.has_next %}
+            <a href="?{% if current.urlencode %}{{ current.urlencode }}&{% endif %}page={{ page_obj.next_page_number }}"
+               class="px-3 py-1.5 rounded-md bg-slate-800 border border-slate-700">Next</a>
+          {% endif %}
+        </div>
+      {% endif %}
+    {% else %}
+      <div class="rounded-xl border border-dashed border-slate-700 p-12 text-center text-slate-400">
+        <p class="mb-3">No cards in the Vault match.</p>
+        <a href="{% url 'cards:card_add' %}" class="text-indigo-400 hover:underline">Add your first card →</a>
+      </div>
+    {% endif %}
+  </section>
+</div>
+{% endblock %}

@@ -1,0 +1,27 @@
+{% comment %}
+Multi-select tag filter with an Any/All match toggle.
+Params (from VaultListView context): all_tags (annotated with .n), selected_tags,
+current_tag_match. Submits `tag` (multi) + `tag_match` (one) on Apply.
+{% endcomment %}
+<div>
+  <label class="block text-xs uppercase tracking-wide text-slate-500 mb-1">Tags</label>
+  <select name="tag_match" class="w-full rounded-md bg-slate-800 border border-slate-700 px-2 py-1.5 text-sm mb-2">
+    <option value="any" {% if current_tag_match == 'any' %}selected{% endif %}>match any</option>
+    <option value="all" {% if current_tag_match == 'all' %}selected{% endif %}>match all</option>
+  </select>
+  {% if all_tags %}
+    <div class="max-h-48 overflow-y-auto rounded-md border border-slate-700 bg-slate-800 divide-y divide-slate-700/60">
+      {% for tag in all_tags %}
+        <label class="flex items-center gap-2 px-2 py-1.5 text-sm cursor-pointer hover:bg-slate-700/50">
+          <input type="checkbox" name="tag" value="{{ tag.slug }}"
+                 class="accent-indigo-500"
+                 {% if tag.slug in selected_tags %}checked{% endif %}>
+          <span class="flex-1 truncate">{{ tag.name }}</span>
+          <span class="text-xs text-slate-500">{{ tag.n }}</span>
+        </label>
+      {% endfor %}
+    </div>
+  {% else %}
+    <p class="text-xs text-slate-500">No tags yet.</p>
+  {% endif %}
+</div>
