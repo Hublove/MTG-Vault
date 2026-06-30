@@ -4,9 +4,15 @@
 {% block content %}
 <div class="flex flex-col lg:flex-row gap-6">
 
-  {# --- Filter sidebar --- #}
+  {# --- Filter sidebar (collapsible on mobile) --- #}
   <aside class="lg:w-64 shrink-0">
-    <form method="get" class="space-y-4 lg:sticky lg:top-20">
+    <button type="button" id="filters-toggle"
+            class="lg:hidden w-full flex items-center justify-between rounded-md bg-slate-800
+                   border border-slate-700 px-3 py-2 text-sm font-medium mb-3">
+      <span>Filters &amp; sort</span>
+      <span id="filters-caret">▾</span>
+    </button>
+    <form id="filters-panel" method="get" class="hidden lg:block space-y-4 lg:sticky lg:top-20">
       <div>
         <label class="block text-xs uppercase tracking-wide text-slate-500 mb-1">Sort</label>
         <select name="sort" onchange="this.form.submit()"
@@ -63,4 +69,16 @@
     {% endif %}
   </section>
 </div>
+
+<script>
+  (function () {
+    const btn = document.getElementById("filters-toggle");
+    const panel = document.getElementById("filters-panel");
+    const caret = document.getElementById("filters-caret");
+    btn.addEventListener("click", () => {
+      const open = panel.classList.toggle("hidden") === false;
+      caret.textContent = open ? "▴" : "▾";
+    });
+  })();
+</script>
 {% endblock %}

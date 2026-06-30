@@ -15,6 +15,12 @@
        with the tile; the width/height split keeps corners circular at the 63:88
        card ratio. */
     .card-img { border-radius: 4.75% / 3.4%; }
+    /* Guard against accidental horizontal scrolling on small screens. */
+    body { overflow-x: hidden; }
+    /* Prevent iOS from auto-zooming when focusing a form control on phones. */
+    @media (max-width: 640px) {
+      input, select, textarea { font-size: 16px; }
+    }
   </style>
 </head>
 <body class="min-h-screen bg-slate-950 text-slate-100 antialiased">
@@ -23,13 +29,15 @@
       <a href="{% url 'cards:vault' %}" class="text-lg font-bold tracking-tight text-indigo-400">
         🃏 MTG Vault
       </a>
-      <div class="flex items-center gap-4 text-sm">
+
+      {# Desktop nav #}
+      <div class="hidden md:flex items-center gap-4 text-sm">
         <a href="{% url 'cards:vault' %}" class="hover:text-indigo-300">Vault</a>
         <a href="{% url 'decks:list' %}" class="hover:text-indigo-300">Decks</a>
         <a href="{% url 'cards:commander_list' %}" class="hover:text-indigo-300">Commanders</a>
         <a href="{% url 'cards:tag_list' %}" class="hover:text-indigo-300">Tags</a>
       </div>
-      <div class="ml-auto flex items-center gap-2">
+      <div class="hidden md:flex ml-auto items-center gap-2">
         <a href="{% url 'cards:card_add' %}"
            class="rounded-md bg-indigo-600 hover:bg-indigo-500 px-3 py-1.5 text-sm font-medium">
           + Add card
@@ -39,8 +47,42 @@
           + New deck
         </a>
       </div>
+
+      {# Mobile hamburger #}
+      <button type="button" id="nav-toggle" aria-label="Menu" aria-expanded="false"
+              class="md:hidden ml-auto w-9 h-9 rounded-md border border-slate-700 bg-slate-800
+                     hover:bg-slate-700 flex items-center justify-center">
+        <span id="nav-icon" class="text-lg leading-none">☰</span>
+      </button>
+    </div>
+
+    {# Mobile menu panel #}
+    <div id="mobile-menu" class="hidden md:hidden border-t border-slate-800 bg-slate-900/95 px-4 py-3 space-y-1">
+      <a href="{% url 'cards:vault' %}" class="block rounded-md px-3 py-2 hover:bg-slate-800">Vault</a>
+      <a href="{% url 'decks:list' %}" class="block rounded-md px-3 py-2 hover:bg-slate-800">Decks</a>
+      <a href="{% url 'cards:commander_list' %}" class="block rounded-md px-3 py-2 hover:bg-slate-800">Commanders</a>
+      <a href="{% url 'cards:tag_list' %}" class="block rounded-md px-3 py-2 hover:bg-slate-800">Tags</a>
+      <div class="pt-2 grid grid-cols-2 gap-2">
+        <a href="{% url 'cards:card_add' %}"
+           class="rounded-md bg-indigo-600 hover:bg-indigo-500 px-3 py-2 text-sm font-medium text-center">+ Add card</a>
+        <a href="{% url 'decks:create' %}"
+           class="rounded-md bg-slate-800 hover:bg-slate-700 border border-slate-700 px-3 py-2 text-sm font-medium text-center">+ New deck</a>
+      </div>
     </div>
   </nav>
+
+  <script>
+    (function () {
+      const btn = document.getElementById("nav-toggle");
+      const menu = document.getElementById("mobile-menu");
+      const icon = document.getElementById("nav-icon");
+      btn.addEventListener("click", () => {
+        const open = menu.classList.toggle("hidden") === false;
+        btn.setAttribute("aria-expanded", open ? "true" : "false");
+        icon.textContent = open ? "✕" : "☰";
+      });
+    })();
+  </script>
 
   {% if messages %}
     <div class="max-w-7xl mx-auto px-4 mt-4 space-y-2">
