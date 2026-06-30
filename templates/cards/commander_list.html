@@ -12,10 +12,10 @@
       <a href="{% url 'cards:commander_detail' cmd.pk %}"
          class="group rounded-xl overflow-hidden bg-slate-900 border border-slate-800
                 hover:border-amber-600 transition block">
-        <div class="aspect-[63/88] bg-slate-800">
+        <div class="aspect-[63/88]">
           {% if cmd.image_uri %}
             <img src="{{ cmd.image_uri }}" alt="{{ cmd.name }}" loading="lazy"
-                 class="w-full h-full object-cover group-hover:scale-[1.02] transition">
+                 class="card-img w-full h-full object-cover group-hover:scale-[1.02] transition">
           {% endif %}
         </div>
         <div class="p-2">

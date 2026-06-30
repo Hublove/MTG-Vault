@@ -2,6 +2,8 @@
 
 ## 2026-06-30
 
+- [Added] Site favicon — a themed SVG (`static/favicon.svg`, indigo cards) linked from the base template; added `STATICFILES_DIRS` so it's served in dev and collected for production.
+- [Fixed] White corners on card art. Scryfall's JPG card images have white corners outside the printed rounded border; card images now get a `.card-img` rounding (`border-radius: 4.75%/3.4%`) so those corners clip to the dark background. Applied to all full-card art (vault grid, card detail, commander tiles/pages, add-card search results, deck commander).
 - [Changed] The "Good for commanders" section on the card page now shows each suggested commander as its full card image (a small grid of card art linking to the commander's page) instead of a text chip. The + editor is unchanged.
 
 ## 2026-06-29

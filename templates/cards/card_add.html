@@ -109,8 +109,8 @@
         "border border-slate-700 hover:border-indigo-500 transition text-left";
       const price = c.price_usd ? "$" + c.price_usd : "—";
       const art = c.image_uri
-        ? '<img src="' + c.image_uri + '" alt="" loading="lazy" class="w-full aspect-[63/88] object-cover">'
-        : '<div class="w-full aspect-[63/88] flex items-center justify-center text-slate-500 text-xs p-2 text-center">' +
+        ? '<img src="' + c.image_uri + '" alt="" loading="lazy" class="card-img w-full aspect-[63/88] object-cover">'
+        : '<div class="card-img w-full aspect-[63/88] flex items-center justify-center text-slate-500 text-xs p-2 text-center">' +
             c.name + '</div>';
       tile.innerHTML = art +
         '<div class="p-1.5">' +

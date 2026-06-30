@@ -13,9 +13,9 @@
     </div>
 
     {% if commander_entry %}
-      <div class="rounded-xl overflow-hidden border border-amber-800/60 bg-slate-900">
+      <div>
         {% if commander_entry.card.image_uri %}
-          <img src="{{ commander_entry.card.image_uri }}" alt="{{ commander_entry.card.name }}" class="w-full">
+          <img src="{{ commander_entry.card.image_uri }}" alt="{{ commander_entry.card.name }}" class="card-img w-full">
         {% endif %}
         <div class="p-2 text-center text-xs text-amber-300">⭐ Commander</div>
       </div>

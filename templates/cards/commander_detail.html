@@ -6,9 +6,9 @@
 
   {# --- Commander info --- #}
   <aside class="lg:w-72 shrink-0 space-y-3">
-    <a href="{% url 'cards:card_detail' commander.pk %}" class="block rounded-xl overflow-hidden border border-amber-800/60 bg-slate-900">
+    <a href="{% url 'cards:card_detail' commander.pk %}" class="block">
       {% if commander.image_uri %}
-        <img src="{{ commander.image_uri }}" alt="{{ commander.name }}" class="w-full">
+        <img src="{{ commander.image_uri }}" alt="{{ commander.name }}" class="card-img w-full">
       {% endif %}
     </a>
     <div>
