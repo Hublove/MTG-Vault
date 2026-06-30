@@ -21,6 +21,11 @@ DEBUG = os.environ.get("DEBUG", "True").lower() in ("1", "true", "yes")
 # Single-user/local tool: allow everything (it's not internet-facing by default).
 ALLOWED_HOSTS = ["*"]
 CSRF_TRUSTED_ORIGINS = ["http://localhost:8000", "http://127.0.0.1:8000"]
+# Add your phone-access origin(s) here when serving over a tunnel/LAN so POSTs
+# pass CSRF, e.g. EXTRA_TRUSTED_ORIGINS=https://abc.trycloudflare.com,http://192.168.1.50:8000
+CSRF_TRUSTED_ORIGINS += [
+    o.strip() for o in os.environ.get("EXTRA_TRUSTED_ORIGINS", "").split(",") if o.strip()
+]
 
 INSTALLED_APPS = [
     "django.contrib.admin",
