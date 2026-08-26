@@ -68,3 +68,18 @@ class VaultColorFilterViewTests(TestCase):
     def test_no_color_params_shows_all(self):
         resp = self.client.get("/vault/")
         self.assertEqual(len(resp.context["cards"]), 4)
+
+    def test_default_operator_is_at_least(self):
+        # Colors selected without an explicit operator default to ≥ (at least).
+        resp = self.client.get("/vault/", {"color": ["G", "W"]})
+        names = {c.name for c in resp.context["cards"]}
+        self.assertEqual(names, {"V-GW", "V-GWU"})
+        self.assertEqual(resp.context["current_color_op"], "gte")
+
+    def test_name_search(self):
+        # ?q= filters by case-insensitive name substring across the whole Vault.
+        resp = self.client.get("/vault/", {"q": "gw"})
+        self.assertEqual({c.name for c in resp.context["cards"]}, {"V-GW", "V-GWU"})
+        # Combines with other filters (q + exact color).
+        resp = self.client.get("/vault/", {"q": "gw", "color": ["G", "W"], "color_op": "eq"})
+        self.assertEqual({c.name for c in resp.context["cards"]}, {"V-GW"})

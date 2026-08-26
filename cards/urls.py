@@ -16,6 +16,14 @@ urlpatterns = [
     # Commanders
     path("commanders/", views.CommanderListView.as_view(), name="commander_list"),
     path("commanders/<int:pk>/", views.CommanderDetailView.as_view(), name="commander_detail"),
+    path("commanders/<int:pk>/suggest/", views.CommanderSuggestCardView.as_view(), name="commander_suggest"),
+    # Full Art gallery (live Scryfall browse)
+    path("full-art/", views.FullArtGalleryView.as_view(), name="full_art"),
+    path(
+        "full-art/<uuid:scryfall_id>/",
+        views.FullArtCardDetailView.as_view(),
+        name="full_art_card_detail",
+    ),
     # Tag management
     path("tags/", views.TagListView.as_view(), name="tag_list"),
     path("tags/new/", views.TagCreateView.as_view(), name="tag_create"),

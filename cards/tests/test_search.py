@@ -88,6 +88,42 @@ class SearchAPIViewTests(TestCase):
         resp = self.client.get(reverse("cards:card_search"), {"q": "  "})
         self.assertEqual(resp.json(), {"results": [], "truncated": False})
 
+    @mock.patch("cards.scryfall.search_cards")
+    def test_augments_results_with_vault_data(self, m_search):
+        # An in-vault card with a tag, a suggested commander, and notes should be
+        # flagged and carry its saved data; a non-vault result should not.
+        cmdr = Card.objects.create(name="Atraxa", scryfall_id="sf-atraxa")
+        card = Card.objects.create(name="Sol Ring", in_vault=True, notes="great ramp")
+        card.tags.add(Tag.objects.create(name="ramp"))
+        card.suggested_commanders.add(cmdr)
+        m_search.return_value = ([_fields("Sol Ring"), _fields("Lightning Bolt")], False)
+
+        resp = self.client.get(reverse("cards:card_search"), {"q": "x"})
+        by_name = {r["name"]: r for r in resp.json()["results"]}
+
+        sol = by_name["Sol Ring"]
+        self.assertTrue(sol["in_vault"])
+        self.assertEqual(sol["tags"], ["ramp"])
+        self.assertEqual(sol["commanders"], [{"name": "Atraxa", "scryfall_id": "sf-atraxa"}])
+        self.assertEqual(sol["notes"], "great ramp")
+
+        bolt = by_name["Lightning Bolt"]
+        self.assertFalse(bolt["in_vault"])
+        self.assertEqual(bolt["tags"], [])
+        self.assertEqual(bolt["commanders"], [])
+        self.assertEqual(bolt["notes"], "")
+
+    @mock.patch("cards.scryfall.search_cards")
+    def test_excludes_commanders_without_scryfall_id(self, m_search):
+        # A suggested commander with no scryfall_id can't be re-resolved, so it's
+        # omitted from the payload rather than preloaded as a chip that'd be dropped.
+        cmdr = Card.objects.create(name="Old Commander", scryfall_id="")
+        card = Card.objects.create(name="Sol Ring", in_vault=True)
+        card.suggested_commanders.add(cmdr)
+        m_search.return_value = ([_fields("Sol Ring")], False)
+        resp = self.client.get(reverse("cards:card_search"), {"q": "x"})
+        self.assertEqual(resp.json()["results"][0]["commanders"], [])
+
     @mock.patch("cards.scryfall.search_cards", side_effect=scryfall.ScryfallError("boom"))
     def test_scryfall_error_returns_502(self, _m):
         resp = self.client.get(reverse("cards:card_search"), {"q": "sol"})
@@ -165,6 +201,28 @@ class CardAddConfirmTests(TestCase):
         self.assertEqual(resp.status_code, 200)
         self.assertFalse(Card.objects.exists())
         self.assertFalse(Tag.objects.filter(slug="brandnewtag").exists())
+
+    @mock.patch("cards.scryfall.lookup_by_id")
+    def test_readd_replaces_tags_removing_unlisted(self, m_lookup):
+        # Re-adding an existing card uses .set(): a tag left out is removed.
+        card = Card.objects.create(name="Sol Ring", in_vault=True)
+        card.tags.add(Tag.objects.create(name="a"), Tag.objects.create(name="b"))
+        m_lookup.return_value = _fields("Sol Ring")
+        self.client.post(
+            reverse("cards:card_add"), {"scryfall_id": "id-sol-ring", "tags": "a"}
+        )
+        card.refresh_from_db()
+        self.assertEqual(set(card.tags.values_list("name", flat=True)), {"a"})
+
+    @mock.patch("cards.scryfall.lookup_by_id")
+    def test_readd_clears_commanders_when_none_submitted(self, m_lookup):
+        cmdr = Card.objects.create(name="Atraxa", scryfall_id="sf-atraxa")
+        card = Card.objects.create(name="Sol Ring", in_vault=True)
+        card.suggested_commanders.add(cmdr)
+        m_lookup.return_value = _fields("Sol Ring")
+        self.client.post(reverse("cards:card_add"), {"scryfall_id": "id-sol-ring"})
+        card.refresh_from_db()
+        self.assertEqual(list(card.suggested_commanders.all()), [])
 
     def test_add_page_wires_tag_combobox(self):
         Tag.objects.create(name="ramp")

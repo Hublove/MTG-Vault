@@ -157,5 +157,15 @@ server reads it via Tag.objects.get_or_create_from_csv. One instance per page
   // Pre-seed chips (e.g. a card's existing tags on the detail page).
   seed.forEach((t) => { if (t) chosen.push(t); });
   renderChips();
+
+  // Public hook: replace all chips programmatically (one instance per page).
+  // Used by the add page to preload an existing card's tags on selection.
+  window.tagCombobox = {
+    set(labels) {
+      chosen.length = 0;
+      (labels || []).forEach((l) => { if (l) chosen.push(l); });
+      renderChips();
+    },
+  };
 })();
 </script>

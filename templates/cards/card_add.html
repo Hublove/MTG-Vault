@@ -26,7 +26,7 @@
   </div>
 
   {# --- Confirm form: details panel + sticky action bar --- #}
-  <form method="post">
+  <form method="post" id="add-form">
     {% csrf_token %}
     <input type="hidden" name="scryfall_id" id="selected-id">
 
@@ -41,7 +41,7 @@
       </div>
       <div>
         <label class="block text-xs uppercase tracking-wide text-slate-500 mb-1">Notes</label>
-        <textarea name="notes" rows="3" placeholder="Optional notes about this card…"
+        <textarea name="notes" id="notes-value" rows="3" placeholder="Optional notes about this card…"
                   class="w-full rounded-md bg-slate-800 border border-slate-700 px-3 py-2 text-sm
                          text-slate-100 placeholder-slate-500 focus:outline-none focus:ring-2 focus:ring-indigo-500"></textarea>
       </div>
@@ -52,6 +52,7 @@
       <span class="text-sm text-slate-400 shrink-0">Selected:
         <span id="selected-name" class="text-slate-200">none</span>
       </span>
+      <span id="vault-hint" class="hidden text-xs text-amber-300 shrink-0">● already in your Vault</span>
       <button id="add-btn" type="submit" disabled
               class="ml-auto shrink-0 rounded-md bg-emerald-600 hover:bg-emerald-500 disabled:opacity-40
                      disabled:cursor-not-allowed px-4 py-2 text-sm font-medium">
@@ -59,8 +60,26 @@
       </button>
     </div>
   </form>
+
+  {# --- Confirm-update modal (shown only when editing an existing Vault card) --- #}
+  <div id="update-modal" class="hidden fixed inset-0 z-50 flex items-center justify-center bg-slate-900/50 p-4">
+    <div class="w-full max-w-sm rounded-xl border border-slate-800 bg-slate-900 p-5 shadow-xl">
+      <h2 class="text-base font-semibold text-slate-100">Update existing card?</h2>
+      <p class="mt-2 text-sm text-slate-400">
+        <span id="update-modal-name" class="text-slate-200"></span> is already in your Vault.
+        Saving will overwrite its tags, commanders, and notes with your changes.
+      </p>
+      <div class="mt-4 flex justify-end gap-2">
+        <button type="button" id="update-cancel"
+                class="rounded-md bg-slate-800 hover:bg-slate-700 border border-slate-700 px-3 py-1.5 text-sm">Cancel</button>
+        <button type="button" id="update-confirm"
+                class="rounded-md bg-emerald-600 hover:bg-emerald-500 px-3 py-1.5 text-sm font-medium">Update in Vault</button>
+      </div>
+    </div>
+  </div>
 </div>
 
+{% if prefill_card %}{{ prefill_card|json_script:"prefill-card" }}{% endif %}
 <script>
 (function () {
   const SEARCH_URL = "{% url 'cards:card_search' %}";
@@ -69,21 +88,68 @@
   const results = document.getElementById("results");
   const selectedId = document.getElementById("selected-id");
   const selectedName = document.getElementById("selected-name");
+  const vaultHint = document.getElementById("vault-hint");
   const addBtn = document.getElementById("add-btn");
+  const notes = document.getElementById("notes-value");
+  const tagsValue = document.getElementById("tags-value");
+  const form = document.getElementById("add-form");
 
-  function setSelection(id, name, tile) {
+  // Baseline of the selected card's saved Vault data, for change-detection.
+  let selected = { inVault: false, tags: [], commanderIds: [], notes: "" };
+  let confirmed = false;  // set true once the update modal is accepted
+
+  const normSet = (arr) => new Set(arr.map((s) => s.trim().toLowerCase()).filter(Boolean));
+  const sameSet = (a, b) => a.size === b.size && [...a].every((x) => b.has(x));
+
+  function currentTags() {
+    return (tagsValue.value || "").split(",").map((s) => s.trim()).filter(Boolean);
+  }
+  function currentCommanderIds() {
+    return Array.from(form.querySelectorAll('input[name="commanders"]')).map((i) => i.value);
+  }
+
+  function isDirty() {
+    return !sameSet(normSet(currentTags()), normSet(selected.tags)) ||
+      !sameSet(new Set(currentCommanderIds()), new Set(selected.commanderIds)) ||
+      notes.value.trim() !== (selected.notes || "").trim();
+  }
+
+  function setSelection(c, tile) {
     document.querySelectorAll(".result-tile").forEach(t =>
       t.classList.remove("ring-2", "ring-indigo-400"));
     tile.classList.add("ring-2", "ring-indigo-400");
-    selectedId.value = id;
-    selectedName.textContent = name;
+    selectedId.value = c.scryfall_id;
+    selectedName.textContent = c.name;
     addBtn.disabled = false;
+
+    // Preload the confirm bar with this card's saved data (empty for new cards,
+    // which also resets the bar when switching from a Vault card to a new one).
+    window.tagCombobox.set(c.tags || []);
+    window.commanderCombobox.set(c.commanders || []);
+    notes.value = c.notes || "";
+
+    selected = {
+      inVault: !!c.in_vault,
+      tags: c.tags || [],
+      commanderIds: (c.commanders || []).map((x) => x.scryfall_id),
+      notes: c.notes || "",
+    };
+    confirmed = false;
+    vaultHint.classList.toggle("hidden", !c.in_vault);
+    addBtn.textContent = c.in_vault ? "Update in Vault" : "+ Add to Vault";
   }
 
   function clearSelection() {
     selectedId.value = "";
     selectedName.textContent = "none";
     addBtn.disabled = true;
+    window.tagCombobox.set([]);
+    window.commanderCombobox.set([]);
+    notes.value = "";
+    selected = { inVault: false, tags: [], commanderIds: [], notes: "" };
+    confirmed = false;
+    vaultHint.classList.add("hidden");
+    addBtn.textContent = "+ Add to Vault";
   }
 
   function renderResults(data) {
@@ -108,8 +174,20 @@
       tile.className = "result-tile group block rounded-lg overflow-hidden bg-slate-800 " +
         "border border-slate-700 hover:border-indigo-500 transition text-left";
       const price = c.price_usd ? "$" + c.price_usd : "—";
+      // Double-faced cards get a flip button; the delegated handler in base.html
+      // swaps the <img> between its data-front / data-back art on click.
+      const flipBtn = c.image_uri_back
+        ? '<button type="button" class="flip-btn absolute bottom-1 right-1 z-10 w-7 h-7 rounded-full ' +
+            'bg-slate-900/80 border border-slate-600 text-slate-100 text-sm leading-none hover:bg-slate-700" ' +
+            'title="Flip card" aria-label="Flip card">⟳</button>'
+        : '';
       const art = c.image_uri
-        ? '<img src="' + c.image_uri + '" alt="" loading="lazy" class="card-img w-full aspect-[63/88] object-cover">'
+        ? '<div class="relative">' +
+            '<img src="' + c.image_uri + '" data-front="' + c.image_uri + '"' +
+              (c.image_uri_back ? ' data-back="' + c.image_uri_back + '"' : '') +
+              ' alt="" loading="lazy" class="card-img w-full aspect-[63/88] object-cover">' +
+            flipBtn +
+          '</div>'
         : '<div class="card-img w-full aspect-[63/88] flex items-center justify-center text-slate-500 text-xs p-2 text-center">' +
             c.name + '</div>';
       tile.innerHTML = art +
@@ -119,7 +197,7 @@
             '<span>' + (c.set_code || "") + '</span><span>' + price + '</span>' +
           '</div>' +
         '</div>';
-      tile.addEventListener("click", () => setSelection(c.scryfall_id, c.name, tile));
+      tile.addEventListener("click", () => setSelection(c, tile));
       results.appendChild(tile);
     }
   }
@@ -141,6 +219,37 @@
     if (e.key === "Enter") { e.preventDefault(); runSearch(); }
   });
   document.getElementById("search-btn").addEventListener("click", runSearch);
+
+  // Confirm-on-change: updating an existing Vault card with edits pops a modal.
+  const modal = document.getElementById("update-modal");
+  const modalName = document.getElementById("update-modal-name");
+  function closeModal() { modal.classList.add("hidden"); }
+
+  form.addEventListener("submit", (e) => {
+    // New card, unchanged existing card, or already-confirmed → submit normally.
+    if (confirmed || !selected.inVault || !isDirty()) return;
+    e.preventDefault();
+    modalName.textContent = selectedName.textContent;
+    modal.classList.remove("hidden");
+  });
+
+  document.getElementById("update-cancel").addEventListener("click", closeModal);
+  modal.addEventListener("click", (e) => { if (e.target === modal) closeModal(); });
+  document.getElementById("update-confirm").addEventListener("click", () => {
+    confirmed = true;
+    closeModal();
+    form.requestSubmit();
+  });
+
+  // Drag-and-drop prefill: the server resolved a dropped Scryfall image URL
+  // (?scryfall=<uuid>) to a card; render it as a one-result grid and
+  // auto-select it so the page arrives ready to submit.
+  const prefillEl = document.getElementById("prefill-card");
+  if (prefillEl) {
+    renderResults({ results: [JSON.parse(prefillEl.textContent)] });
+    results.querySelector(".result-tile").click();
+    statusEl.textContent = "Card dropped from Scryfall — review and add.";
+  }
 })();
 </script>
 {% endblock %}

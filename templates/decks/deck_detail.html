@@ -14,9 +14,7 @@
 
     {% if commander_entry %}
       <div class="max-w-[14rem] mx-auto lg:max-w-none">
-        {% if commander_entry.card.image_uri %}
-          <img src="{{ commander_entry.card.image_uri }}" alt="{{ commander_entry.card.name }}" class="card-img w-full">
-        {% endif %}
+        {% include "cards/_card_art.html" with card=commander_entry.card img_class="card-img w-full" %}
         <div class="p-2 text-center text-xs text-amber-300">⭐ Commander</div>
       </div>
     {% endif %}

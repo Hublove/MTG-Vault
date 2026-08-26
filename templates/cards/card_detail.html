@@ -6,19 +6,23 @@
 
   {# --- Image --- #}
   <div class="max-w-[16rem] mx-auto md:max-w-none md:mx-0">
-    {% if card.image_uri %}
-      <img src="{{ card.image_uri }}" alt="{{ card.name }}" class="card-img w-full">
-    {% else %}
-      <div class="card-img aspect-[63/88] flex items-center justify-center border border-slate-800 bg-slate-900 text-slate-600">No image</div>
-    {% endif %}
+    {% include "cards/_card_art.html" with card=card img_class="card-img w-full" %}
   </div>
 
   {# --- Details --- #}
   <div class="space-y-6">
-    <div>
-      <h1 class="text-2xl font-bold">{{ card.name }}</h1>
-      <p class="text-slate-400">{{ card.type_line }}</p>
-      <p class="text-sm text-slate-500 mt-1">{{ card.set_name }} ({{ card.set_code }}) · {{ card.rarity|capfirst }}</p>
+    <div class="flex items-start justify-between gap-3">
+      <div>
+        <h1 class="text-2xl font-bold">{{ card.name }}</h1>
+        <p class="text-slate-400">{{ card.type_line }}</p>
+        <p class="text-sm text-slate-500 mt-1">{{ card.set_name }} ({{ card.set_code }}) · {{ card.rarity|capfirst }}</p>
+      </div>
+      {% if card.in_vault %}
+        <button type="button" id="remove-open"
+                class="shrink-0 rounded-md bg-rose-600 hover:bg-rose-500 px-3 py-1.5 text-sm font-medium">
+          Remove from Vault
+        </button>
+      {% endif %}
     </div>
 
     <div class="flex gap-6">
@@ -48,7 +52,7 @@
     {# --- Tags editor (modern type-ahead chip combobox) --- #}
     <div class="rounded-xl border border-slate-800 bg-slate-900/50 p-4">
       <h2 class="text-sm font-semibold text-slate-300 mb-2">Tags</h2>
-      <form method="post" action="{% url 'cards:card_tags' card.pk %}" class="flex items-start gap-2">
+      <form method="post" action="{% url 'cards:card_tags' card.pk %}" class="flex items-stretch gap-2">
         {% csrf_token %}
         {% include "cards/_tag_combobox.html" with initial_tag_names=initial_tag_names %}
         <button class="shrink-0 rounded-md bg-indigo-600 hover:bg-indigo-500 px-3 py-1.5 text-sm font-medium">Save</button>
@@ -74,14 +78,7 @@
                  class="group block rounded-lg overflow-hidden bg-slate-800 border border-slate-700
                         hover:border-amber-500 transition">
                 <div class="aspect-[63/88]">
-                  {% if cmd.image_uri %}
-                    <img src="{{ cmd.image_uri }}" alt="{{ cmd.name }}" loading="lazy"
-                         class="card-img w-full h-full object-cover group-hover:scale-[1.02] transition">
-                  {% else %}
-                    <div class="card-img w-full h-full flex items-center justify-center bg-slate-800 text-slate-500 text-xs p-2 text-center">
-                      {{ cmd.name }}
-                    </div>
-                  {% endif %}
+                  {% include "cards/_card_art.html" with card=cmd img_class="card-img w-full h-full object-cover group-hover:scale-[1.02] transition" %}
                 </div>
                 <div class="px-1.5 py-1 text-[11px] text-amber-200 truncate">⭐ {{ cmd.name }}</div>
               </a>
@@ -127,17 +124,30 @@
     </div>
 
     <div class="flex items-center gap-3 pt-2">
-      {% if card.in_vault %}
-        <form method="post" action="{% url 'cards:card_remove' card.pk %}"
-              onsubmit="return confirm('Remove {{ card.name }} from the Vault?');">
-          {% csrf_token %}
-          <button class="text-sm text-rose-400 hover:underline">Remove from Vault</button>
-        </form>
-      {% endif %}
       <a href="{% url 'cards:vault' %}" class="text-sm text-slate-400 hover:underline">← Back to Vault</a>
     </div>
   </div>
 </div>
+
+{% if card.in_vault %}
+  {# --- Remove-from-Vault confirmation modal --- #}
+  <div id="remove-modal" class="hidden fixed inset-0 z-50 flex items-center justify-center bg-slate-900/50 p-4">
+    <div class="w-full max-w-sm rounded-xl border border-slate-800 bg-slate-900 p-5 shadow-xl">
+      <h2 class="text-base font-semibold text-slate-100">Remove from Vault?</h2>
+      <p class="mt-2 text-sm text-slate-400">
+        Remove <span class="text-slate-200">{{ card.name }}</span> from the Vault? The card
+        stays in the database (decks keep using it) — it's just no longer in your collection.
+      </p>
+      <form method="post" action="{% url 'cards:card_remove' card.pk %}" class="mt-4 flex justify-end gap-2">
+        {% csrf_token %}
+        <button type="button" id="remove-cancel"
+                class="rounded-md bg-slate-800 hover:bg-slate-700 border border-slate-700 px-3 py-1.5 text-sm">Cancel</button>
+        <button type="submit"
+                class="rounded-md bg-rose-600 hover:bg-rose-500 px-3 py-1.5 text-sm font-medium">Remove</button>
+      </form>
+    </div>
+  </div>
+{% endif %}
 
 <script>
 // Notes: locked (read-only) until the pen unlocks editing.
@@ -176,6 +186,18 @@
   function hide() { editor.classList.add("hidden"); readonly.classList.remove("hidden"); }
   add.addEventListener("click", () => editor.classList.contains("hidden") ? show() : hide());
   cancel.addEventListener("click", hide);
+})();
+
+// Remove from Vault: the red header button opens a styled confirm modal.
+(function () {
+  const open = document.getElementById("remove-open");
+  const modal = document.getElementById("remove-modal");
+  if (!open || !modal) return;  // card not in vault
+  const cancel = document.getElementById("remove-cancel");
+  const close = () => modal.classList.add("hidden");
+  open.addEventListener("click", () => modal.classList.remove("hidden"));
+  cancel.addEventListener("click", close);
+  modal.addEventListener("click", (e) => { if (e.target === modal) close(); });
 })();
 </script>
 {% endblock %}

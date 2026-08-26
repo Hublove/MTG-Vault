@@ -1,0 +1,108 @@
+{% extends "base.html" %}
+{% block title %}Full Art{% endblock %}
+
+{% block content %}
+<div class="flex items-center justify-between gap-3 mb-4">
+  <h1 class="text-xl font-bold shrink-0">Full Art <span class="text-slate-500 text-base font-normal">({{ total_cards }})</span></h1>
+  <form method="get" class="flex gap-2 min-w-0">
+    {# Preserve sort/set when searching, but never page — a new search starts at page 1. #}
+    {% if current_sort %}<input type="hidden" name="sort" value="{{ current_sort }}">{% endif %}
+    {% if set_code %}<input type="hidden" name="set" value="{{ set_code }}">{% endif %}
+    {% if hide_lands %}<input type="hidden" name="hide_lands" value="1">{% endif %}
+    {% if hide_unpriced %}<input type="hidden" name="hide_unpriced" value="1">{% endif %}
+    <input type="text" name="q" value="{{ q }}" placeholder="Search cards…" autocomplete="off"
+           class="w-36 sm:w-56 min-w-0 rounded-md bg-slate-800 border border-slate-700 px-3 py-1.5 text-sm
+                  placeholder-slate-500 focus:outline-none focus:ring-2 focus:ring-indigo-500">
+    <button type="submit" class="shrink-0 rounded-md bg-indigo-600 hover:bg-indigo-500 px-3 py-1.5 text-sm font-medium">Search</button>
+  </form>
+</div>
+
+{# --- Sort + set controls --- #}
+<form method="get" class="flex flex-wrap items-end gap-3 mb-5">
+  {% if q %}<input type="hidden" name="q" value="{{ q }}">{% endif %}
+  <div class="w-44">
+    <label class="block text-xs uppercase tracking-wide text-slate-500 mb-1">Sort</label>
+    <select name="sort" onchange="this.form.submit()"
+            class="w-full rounded-md bg-slate-800 border border-slate-700 px-2 py-1.5 text-sm">
+      <option value="newest" {% if current_sort == 'newest' %}selected{% endif %}>Newest first</option>
+      <option value="oldest" {% if current_sort == 'oldest' %}selected{% endif %}>Oldest first</option>
+      <option value="price_desc" {% if current_sort == 'price_desc' %}selected{% endif %}>Price: high → low</option>
+      <option value="price_asc" {% if current_sort == 'price_asc' %}selected{% endif %}>Price: low → high</option>
+      <option value="edhrec" {% if current_sort == 'edhrec' %}selected{% endif %}>EDHREC rank</option>
+    </select>
+  </div>
+  <div class="w-56">
+    {% include "cards/_filter_pairs.html" with label="Set" name="set" pairs=sets selected=set_code %}
+  </div>
+  <label class="flex items-center gap-2 text-sm text-slate-300 pb-2 cursor-pointer">
+    <input type="checkbox" name="hide_lands" value="1" {% if hide_lands %}checked{% endif %}
+           onchange="this.form.submit()"
+           class="rounded bg-slate-800 border-slate-600 text-indigo-600 focus:ring-indigo-500">
+    Hide lands
+  </label>
+  <label class="flex items-center gap-2 text-sm text-slate-300 pb-2 cursor-pointer">
+    <input type="checkbox" name="hide_unpriced" value="1" {% if hide_unpriced %}checked{% endif %}
+           onchange="this.form.submit()"
+           class="rounded bg-slate-800 border-slate-600 text-indigo-600 focus:ring-indigo-500">
+    Hide unpriced
+  </label>
+  <button type="submit" class="rounded-md bg-indigo-600 hover:bg-indigo-500 px-3 py-1.5 text-sm font-medium">Apply</button>
+  <a href="{% url 'cards:full_art' %}" class="rounded-md bg-slate-800 hover:bg-slate-700 px-3 py-1.5 text-sm border border-slate-700">Clear</a>
+</form>
+
+{% if scryfall_error %}
+  <div class="rounded-md border border-rose-800 bg-rose-950/60 px-4 py-2 text-sm text-rose-200 mb-4">
+    Scryfall is unavailable right now — try again in a moment.
+  </div>
+{% endif %}
+
+{% if cards %}
+  <div class="grid grid-cols-2 sm:grid-cols-3 md:grid-cols-4 xl:grid-cols-5 gap-3">
+    {% for card in cards %}
+      <a href="{% url 'cards:full_art_card_detail' card.scryfall_id %}"
+         class="group rounded-xl overflow-hidden bg-slate-900 border border-slate-800
+                hover:border-indigo-600 transition block">
+        <div class="aspect-[63/88]">
+          {% include "cards/_card_art.html" with card=card img_class="card-img w-full h-full object-cover group-hover:scale-[1.02] transition" %}
+        </div>
+        <div class="p-2">
+          {# Price gets its own shrink-0 slot so a long name truncates instead of hiding it. #}
+          <div class="flex items-baseline justify-between gap-2">
+            <div class="text-sm font-medium truncate">{{ card.name }}</div>
+            {# Foil-only printings have no nonfoil price; show the foil one rather than an em-dash. #}
+            <div class="text-sm text-emerald-400 shrink-0">{% if card.price_usd %}${{ card.price_usd }}{% elif card.price_usd_foil %}${{ card.price_usd_foil }}{% else %}—{% endif %}</div>
+          </div>
+          <div class="text-xs text-slate-500 truncate">
+            {{ card.set_name }}{% if card.released_at %} · {{ card.released_at|slice:":4" }}{% endif %}
+          </div>
+        </div>
+      </a>
+    {% endfor %}
+  </div>
+
+  {% if total_pages > 1 %}
+    <div class="flex items-center justify-center gap-3 mt-6 text-sm">
+      {% if page > 1 %}
+        {# current already carries page; a duplicate key resolves to the last value. #}
+        <a href="?{% if current.urlencode %}{{ current.urlencode }}&{% endif %}page={{ page|add:'-1' }}"
+           class="px-3 py-1.5 rounded-md bg-slate-800 border border-slate-700">Prev</a>
+      {% endif %}
+      <span class="text-slate-400">Page {{ page }} / {{ total_pages }}</span>
+      {% if has_more %}
+        <a href="?{% if current.urlencode %}{{ current.urlencode }}&{% endif %}page={{ page|add:'1' }}"
+           class="px-3 py-1.5 rounded-md bg-slate-800 border border-slate-700">Next</a>
+      {% endif %}
+    </div>
+  {% endif %}
+{% elif not scryfall_error %}
+  <div class="rounded-xl border border-dashed border-slate-700 p-12 text-center text-slate-400">
+    {% if q %}
+      <p class="mb-3">No full-art version of “{{ q }}” found.</p>
+      <p class="text-sm">Not every card has a full-art printing — try another name.</p>
+    {% else %}
+      <p class="mb-3">No full-art cards matched.</p>
+      <p class="text-sm">Try clearing the set filter.</p>
+    {% endif %}
+  </div>
+{% endif %}
+{% endblock %}

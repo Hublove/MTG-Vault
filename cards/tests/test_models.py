@@ -52,7 +52,11 @@ class CardHelpersTests(TestCase):
         labels = {label: url for label, url in card.external_links}
         self.assertIn("401 Games", labels)
         self.assertIn("Lightning+Bolt", labels["401 Games"])
-        self.assertIn("facetofacegames.com", labels["Face to Face"])
+        self.assertEqual(
+            labels["Face to Face"],
+            "https://facetofacegames.com/search?q=Lightning+Bolt"
+            "&sort_by=price_asc&filter__Availability=In+Stock",
+        )
 
     def test_tagger_link_uses_lowercase_set_and_collector_number(self):
         card = Card(name="Fortune Teller's Talent", set_code="BLC", collector_number="14")

@@ -74,6 +74,23 @@ def _image_uri(payload):
     return ""
 
 
+def _image_uri_back(payload):
+    """Back-face normal image for double-faced cards, else "".
+
+    Only true double-faced layouts (transform, modal_dfc, …) carry per-face
+    images under ``card_faces[1]``. Cards with a single top-level ``image_uris``
+    — including split/adventure cards whose faces share one image — have no
+    distinct back face and return "".
+    """
+    if payload.get("image_uris"):
+        return ""
+    faces = payload.get("card_faces") or []
+    if len(faces) > 1 and faces[1].get("image_uris"):
+        face_images = faces[1]["image_uris"]
+        return face_images.get("normal") or face_images.get("large") or ""
+    return ""
+
+
 def extract_card_fields(payload):
     """Map a raw Scryfall card object into our Card field dict.
 
@@ -97,6 +114,8 @@ def extract_card_fields(payload):
         "rarity": payload.get("rarity", "") or "",
         "mana_value": payload.get("cmc", 0) or 0,
         "image_uri": _image_uri(payload),
+        "image_uri_back": _image_uri_back(payload),
+        "layout": payload.get("layout", "") or "",
         "scryfall_uri": payload.get("scryfall_uri", "") or "",
         "price_usd": _to_decimal(prices.get("usd")),
         "price_usd_foil": _to_decimal(prices.get("usd_foil")),
@@ -188,6 +207,75 @@ def lookup_by_id(scryfall_id):
     if resp.status_code != 200:
         raise ScryfallError(f"Scryfall {resp.status_code} for id '{scryfall_id}'")
     return extract_card_fields(resp.json())
+
+
+def extract_gallery_fields(payload):
+    """``extract_card_fields`` plus the fields the Full Art gallery displays.
+
+    These live only on the API payload (the Card model stores neither), so the
+    gallery reads them straight from Scryfall. ``is_double_faced`` is a model
+    property, so it's precomputed here — the gallery feeds plain dicts to
+    ``_card_art.html``, which looks it up like any other attribute.
+    """
+    fields = extract_card_fields(payload)
+    fields["released_at"] = payload.get("released_at", "") or ""
+    fields["edhrec_rank"] = payload.get("edhrec_rank")  # int, or None if unranked
+    fields["is_double_faced"] = bool(fields["image_uri_back"])
+    return fields
+
+
+def search_full_art(name="", set_code="", order="released", direction="desc", page=1,
+                    exclude_lands=False, exclude_unpriced=False):
+    """Full-art printings via /cards/search, one result per printing.
+
+    Unlike ``search_cards`` this uses ``unique="prints"`` — the gallery is about
+    printings, so every full-art version of a card is its own tile.
+
+    ``exclude_lands`` appends ``-t:land``, which drops anything with the Land
+    type — full-art basics (the bulk of the gallery), but also nonbasic lands
+    and the land backs of dual-faced cards. ``exclude_unpriced`` appends
+    ``usd>0``, dropping printings Scryfall has no USD price for (unreleased sets
+    especially). A foil-only printing still matches on its ``usd_foil`` price
+    even though ``price_usd`` is None, so callers displaying a price should fall
+    back to the foil one.
+
+    Returns ``(results, total_cards, has_more)``. A 404 ("no cards found") is the
+    normal empty result, e.g. a name with no full-art printing.
+    """
+    parts = ["is:full"]
+    if exclude_lands:
+        parts.append("-t:land")
+    if exclude_unpriced:
+        parts.append("usd>0")
+    if set_code:
+        parts.append(f"e:{set_code}")
+    if name:
+        # Strip embedded quotes so a name can't break out of the quoted phrase
+        # and inject extra Scryfall query operators.
+        parts.append('"%s"' % name.replace('"', ""))
+    resp = _get("/cards/search", q=" ".join(parts), unique="prints",
+                order=order, dir=direction, page=page)
+    if resp.status_code == 404:
+        return [], 0, False
+    if resp.status_code != 200:
+        raise ScryfallError(f"Scryfall search error {resp.status_code}")
+    data = resp.json()
+    results = [extract_gallery_fields(obj) for obj in data.get("data", [])]
+    return results, data.get("total_cards", 0), bool(data.get("has_more"))
+
+
+def list_sets():
+    """All non-digital Scryfall sets as ``(code, name)`` pairs, newest first.
+
+    Backs the gallery's set filter. Digital-only sets are excluded — they have no
+    physical full-art printings worth browsing.
+    """
+    resp = _get("/sets")
+    if resp.status_code != 200:
+        raise ScryfallError(f"Scryfall sets error {resp.status_code}")
+    sets = [s for s in resp.json().get("data", []) if not s.get("digital")]
+    sets.sort(key=lambda s: s.get("released_at") or "", reverse=True)
+    return [(s["code"], s["name"]) for s in sets]
 
 
 # --- Bulk data -------------------------------------------------------------

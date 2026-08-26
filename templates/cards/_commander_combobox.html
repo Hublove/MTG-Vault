@@ -142,5 +142,17 @@ searches Scryfall (legendary creatures only) for new commanders to add.
 
   seed.forEach((c) => { if (c && c.scryfall_id) chosen.push({ name: c.name, scryfall_id: c.scryfall_id }); });
   renderChips();
+
+  // Public hook: replace all chips programmatically (one instance per page).
+  // Used by the add page to preload an existing card's commanders on selection.
+  window.commanderCombobox = {
+    set(list) {
+      chosen.length = 0;
+      (list || []).forEach((c) => {
+        if (c && c.scryfall_id) chosen.push({ name: c.name, scryfall_id: c.scryfall_id });
+      });
+      renderChips();
+    },
+  };
 })();
 </script>

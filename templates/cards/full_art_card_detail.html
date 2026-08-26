@@ -1,0 +1,56 @@
+{% extends "base.html" %}
+{% block title %}{{ card.name }}{% endblock %}
+
+{# View-only page for a full-art printing fetched live from Scryfall. The card is
+   an unsaved Card instance with no pk, so nothing here may link to vault-row
+   endpoints (tags/commanders/notes/remove) — "Add to Vault" is the only action. #}
+{% block content %}
+<div class="grid md:grid-cols-[300px_1fr] gap-8">
+
+  {# --- Image --- #}
+  <div class="max-w-[16rem] mx-auto md:max-w-none md:mx-0">
+    {% include "cards/_card_art.html" with card=card img_class="card-img w-full" %}
+  </div>
+
+  {# --- Details --- #}
+  <div class="space-y-6">
+    <div class="flex items-start justify-between gap-3">
+      <div>
+        <h1 class="text-2xl font-bold">{{ card.name }}</h1>
+        <p class="text-slate-400">{{ card.type_line }}</p>
+        <p class="text-sm text-slate-500 mt-1">{{ card.set_name }} ({{ card.set_code }}) · {{ card.rarity|capfirst }}</p>
+      </div>
+      <a href="{% url 'cards:card_add' %}?scryfall={{ card.scryfall_id }}"
+         class="shrink-0 rounded-md bg-indigo-600 hover:bg-indigo-500 px-3 py-1.5 text-sm font-medium">
+        + Add to Vault
+      </a>
+    </div>
+
+    {# Prices carry no "updated" stamp — a live fetch is current by definition. #}
+    <div class="flex gap-6">
+      <div>
+        <div class="text-xs uppercase tracking-wide text-slate-500">USD</div>
+        <div class="text-xl font-semibold">{% if card.price_usd %}${{ card.price_usd }}{% else %}—{% endif %}</div>
+      </div>
+      <div>
+        <div class="text-xs uppercase tracking-wide text-slate-500">CAD (est.)</div>
+        <div class="text-xl font-semibold">{% if card.price_cad %}${{ card.price_cad }}{% else %}—{% endif %}</div>
+      </div>
+    </div>
+
+    {# --- External links --- #}
+    <div class="flex flex-wrap gap-2">
+      {% for label, url in card.external_links %}
+        <a href="{{ url }}" target="_blank" rel="noopener"
+           class="rounded-md bg-slate-800 hover:bg-slate-700 border border-slate-700 px-3 py-1.5 text-sm">
+          {{ label }} ↗
+        </a>
+      {% endfor %}
+    </div>
+
+    <div class="flex items-center gap-3 pt-2">
+      <a href="{% url 'cards:full_art' %}" class="text-sm text-slate-400 hover:underline">← Back to Full Art</a>
+    </div>
+  </div>
+</div>
+{% endblock %}

@@ -96,6 +96,8 @@ class CardManager(models.Manager.from_queryset(CardQuerySet)):
         "rarity",
         "mana_value",
         "image_uri",
+        "image_uri_back",
+        "layout",
         "scryfall_uri",
         "price_usd",
         "price_usd_foil",

@@ -2,14 +2,22 @@
 {% block title %}{{ commander.name }} — Commander{% endblock %}
 
 {% block content %}
+{# Opt-in drop target: the global drag-drop handler in base.html submits the #}
+{# dragged card's Scryfall UUID here instead of routing to the add page. #}
+<form id="drop-suggest-form" method="post" class="hidden"
+      action="{% url 'cards:commander_suggest' commander.pk %}"
+      data-drop-title="Drop card to suggest for {{ commander.name }}"
+      data-drop-hint="It&#x27;ll be added to this commander&#x27;s suggested cards">
+  {% csrf_token %}
+  <input type="hidden" name="scryfall" value="">
+</form>
+
 <div class="flex flex-col lg:flex-row gap-6">
 
   {# --- Commander info --- #}
   <aside class="lg:w-72 shrink-0 space-y-3">
     <a href="{% url 'cards:card_detail' commander.pk %}" class="block max-w-[14rem] mx-auto lg:max-w-none">
-      {% if commander.image_uri %}
-        <img src="{{ commander.image_uri }}" alt="{{ commander.name }}" class="card-img w-full">
-      {% endif %}
+      {% include "cards/_card_art.html" with card=commander img_class="card-img w-full" %}
     </a>
     <div>
       <h1 class="text-xl font-bold">⭐ {{ commander.name }}</h1>

@@ -7,9 +7,16 @@
     <h1 class="text-xl font-bold">Tags</h1>
     <a href="{% url 'cards:tag_create' %}" class="rounded-md bg-indigo-600 hover:bg-indigo-500 px-3 py-1.5 text-sm font-medium">+ New tag</a>
   </div>
+
+  {% if tags %}
+    <input type="text" id="tag-search" placeholder="Search tags…" autocomplete="off"
+           class="w-full rounded-md bg-slate-800 border border-slate-700 px-3 py-2 text-sm mb-3
+                  placeholder-slate-500 focus:outline-none focus:ring-2 focus:ring-indigo-500">
+  {% endif %}
+
   <div class="rounded-xl border border-slate-800 divide-y divide-slate-800">
     {% for tag in tags %}
-      <div class="flex items-center justify-between px-4 py-3">
+      <div class="tag-row flex items-center justify-between px-4 py-3" data-name="{{ tag.name|lower }}">
         <div class="flex items-center gap-3">
           {% include "cards/_tag_chip.html" %}
           <span class="text-sm text-slate-500">{{ tag.n }} card{{ tag.n|pluralize }}</span>
@@ -22,6 +29,26 @@
     {% empty %}
       <p class="px-4 py-6 text-slate-500 text-sm">No tags yet.</p>
     {% endfor %}
+    <p id="tag-search-empty" class="hidden px-4 py-6 text-slate-500 text-sm">No tags match.</p>
   </div>
 </div>
+
+<script>
+  (function () {
+    const box = document.getElementById("tag-search");
+    if (!box) return;
+    const rows = Array.from(document.querySelectorAll(".tag-row"));
+    const empty = document.getElementById("tag-search-empty");
+    box.addEventListener("input", () => {
+      const q = box.value.trim().toLowerCase();
+      let shown = 0;
+      rows.forEach((r) => {
+        const hit = r.dataset.name.includes(q);
+        r.classList.toggle("hidden", !hit);
+        if (hit) shown++;
+      });
+      empty.classList.toggle("hidden", shown > 0);
+    });
+  })();
+</script>
 {% endblock %}

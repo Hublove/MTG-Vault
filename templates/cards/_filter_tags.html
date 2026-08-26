@@ -10,9 +10,13 @@ current_tag_match. Submits `tag` (multi) + `tag_match` (one) on Apply.
     <option value="all" {% if current_tag_match == 'all' %}selected{% endif %}>match all</option>
   </select>
   {% if all_tags %}
-    <div class="max-h-48 overflow-y-auto rounded-md border border-slate-700 bg-slate-800 divide-y divide-slate-700/60">
+    <input type="text" id="tag-filter-search" placeholder="Search tags…" autocomplete="off"
+           class="w-full rounded-md bg-slate-800 border border-slate-700 px-2 py-1.5 text-sm mb-2
+                  placeholder-slate-500 focus:outline-none focus:ring-2 focus:ring-indigo-500">
+    <div id="tag-filter-list" class="max-h-48 overflow-y-auto no-scrollbar rounded-md border border-slate-700 bg-slate-800 divide-y divide-slate-700/60">
       {% for tag in all_tags %}
-        <label class="flex items-center gap-2 px-2 py-1.5 text-sm cursor-pointer hover:bg-slate-700/50">
+        <label class="tag-row flex items-center gap-2 px-2 py-1.5 text-sm cursor-pointer hover:bg-slate-700/50"
+               data-name="{{ tag.name|lower }}">
           <input type="checkbox" name="tag" value="{{ tag.slug }}"
                  class="accent-indigo-500"
                  {% if tag.slug in selected_tags %}checked{% endif %}>
@@ -20,7 +24,27 @@ current_tag_match. Submits `tag` (multi) + `tag_match` (one) on Apply.
           <span class="text-xs text-slate-500">{{ tag.n }}</span>
         </label>
       {% endfor %}
+      <p id="tag-filter-empty" class="hidden px-2 py-2 text-xs text-slate-500">No tags match.</p>
     </div>
+    <script>
+      (function () {
+        const box = document.getElementById("tag-filter-search");
+        const rows = Array.from(document.querySelectorAll("#tag-filter-list .tag-row"));
+        const empty = document.getElementById("tag-filter-empty");
+        box.addEventListener("input", () => {
+          const q = box.value.trim().toLowerCase();
+          let shown = 0;
+          rows.forEach((r) => {
+            const hit = r.dataset.name.includes(q);
+            r.classList.toggle("hidden", !hit);
+            if (hit) shown++;
+          });
+          empty.classList.toggle("hidden", shown > 0);
+        });
+        // It lives inside the GET filter form — don't submit on Enter.
+        box.addEventListener("keydown", (e) => { if (e.key === "Enter") e.preventDefault(); });
+      })();
+    </script>
   {% else %}
     <p class="text-xs text-slate-500">No tags yet.</p>
   {% endif %}

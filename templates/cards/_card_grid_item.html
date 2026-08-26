@@ -9,14 +9,7 @@ the card link; the tag chips sit in a sibling block.
             hover:border-indigo-600 transition shadow-sm hover:shadow-indigo-900/40">
   <a href="{{ card.get_absolute_url }}" class="block">
     <div class="aspect-[63/88]">
-      {% if card.image_uri %}
-        <img src="{{ card.image_uri }}" alt="{{ card.name }}" loading="lazy"
-             class="card-img w-full h-full object-cover group-hover:scale-[1.02] transition">
-      {% else %}
-        <div class="card-img w-full h-full flex items-center justify-center bg-slate-800 text-slate-600 text-sm p-2 text-center">
-          {{ card.name }}
-        </div>
-      {% endif %}
+      {% include "cards/_card_art.html" with card=card img_class="card-img w-full h-full object-cover group-hover:scale-[1.02] transition" %}
     </div>
     <div class="px-2 pt-2">
       <div class="text-sm font-medium truncate">{{ card.name }}</div>
@@ -27,8 +20,11 @@ the card link; the tag chips sit in a sibling block.
     </div>
   </a>
   {% if card.tags.all %}
-    <div class="flex flex-wrap gap-1 px-2 pb-2 pt-1">
-      {% for tag in card.tags.all %}{% include "cards/_tag_chip.html" %}{% endfor %}
+    {# Capped to ~2 rows; JS trims overflow and appends a "…" (see vault_list.html). #}
+    <div class="px-2 pb-2 pt-1">
+      <div class="vault-tags flex flex-wrap gap-1 max-h-[3rem] overflow-hidden">
+        {% for tag in card.tags.all %}{% include "cards/_tag_chip.html" %}{% endfor %}
+      </div>
     </div>
   {% endif %}
 </div>

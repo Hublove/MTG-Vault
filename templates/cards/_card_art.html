@@ -1,0 +1,26 @@
+{% comment %}Card art with an optional flip button for double-faced cards.
+
+Params:
+  card       (required) a Card with .image_uri / .image_uri_back / .is_double_faced
+  img_class  (required) CSS classes for the <img> (each caller keeps its own layout)
+
+The flip button + data-front/data-back attributes are wired by a single delegated
+listener in base.html, so no per-caller JS is needed.
+{% endcomment %}
+{% if card.image_uri %}
+  <div class="relative w-full h-full">
+    <img src="{{ card.image_uri }}" data-front="{{ card.image_uri }}"
+         {% if card.is_double_faced %}data-back="{{ card.image_uri_back }}"{% endif %}
+         alt="{{ card.name }}" loading="lazy" class="{{ img_class }}">
+    {% if card.is_double_faced %}
+      <button type="button"
+              class="flip-btn absolute bottom-1 right-1 z-10 w-7 h-7 rounded-full bg-slate-900/80
+                     border border-slate-600 text-slate-100 text-sm leading-none hover:bg-slate-700"
+              title="Flip card" aria-label="Flip card">⟳</button>
+    {% endif %}
+  </div>
+{% else %}
+  <div class="{{ img_class }} flex items-center justify-center bg-slate-800 text-slate-500 text-sm p-2 text-center">
+    {{ card.name }}
+  </div>
+{% endif %}

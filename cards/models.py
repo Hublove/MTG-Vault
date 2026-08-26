@@ -89,6 +89,10 @@ class Card(models.Model):
     mana_value = models.FloatField(default=0)
 
     image_uri = models.URLField(max_length=500, blank=True)
+    # Back-face art for double-faced cards (transform/modal_dfc); "" otherwise.
+    image_uri_back = models.URLField(max_length=500, blank=True)
+    # Scryfall layout, e.g. "normal", "transform", "modal_dfc", "split".
+    layout = models.CharField(max_length=32, blank=True)
     scryfall_uri = models.URLField(max_length=500, blank=True)
 
     # Pricing. Scryfall gives USD only; CAD is computed via FX_RATE_USD_CAD.
@@ -143,6 +147,11 @@ class Card(models.Model):
     # --- Derived data ------------------------------------------------------
 
     @property
+    def is_double_faced(self):
+        """True when a distinct back-face image is available to flip to."""
+        return bool(self.image_uri_back)
+
+    @property
     def price_cad(self):
         """USD price converted to CAD using the configured FX rate."""
         if self.price_usd is None:
@@ -180,7 +189,10 @@ class Card(models.Model):
             ("Scryfall", self.scryfall_uri or f"https://scryfall.com/search?q={q}"),
             ("Tagger", tagger),
             ("401 Games", f"https://store.401games.ca/pages/search-results?q={q}"),
-            ("Face to Face", f"https://www.facetofacegames.com/search/?keyword={q}"),
+            # F2F migrated to a Shopify storefront; the old /search/?keyword= URL
+            # ignores the query and lands on an empty "Search for Search" page.
+            # sort/filter param names captured from the live site's controls.
+            ("Face to Face", f"https://facetofacegames.com/search?q={q}&sort_by=price_asc&filter__Availability=In+Stock"),
         ]
 
 
