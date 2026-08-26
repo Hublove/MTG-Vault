@@ -1,5 +1,9 @@
 # Changelog
 
+## 2026-08-26
+
+- [Added] `AUTO_DEPLOY` opt-in on the Docker entrypoint: when set, container start resets `/app` to `origin/main` (via a `GIT_PAT`-authenticated fetch) and reinstalls dependencies before running migrations, so redeploying the TrueNAS app is just a stop/start instead of an SSH-in-and-rebuild. Off by default — local dev via `docker-compose.yml` is unaffected. Requires `git` in the runtime image (added to the `Dockerfile`).
+
 ## 2026-08-04
 
 - [Changed] The "Face to Face" store button now opens the search pre-filtered to in-stock listings and sorted price low→high (`sort_by=price_asc`, `filter__Availability=In+Stock` — param names captured from the live site's sort dropdown and the In Stock filter).
