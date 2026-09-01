@@ -12,6 +12,7 @@ staticfiles/
 
 # Secrets / local config
 .env
+truenas.yaml
 
 # Tooling / editor
 .claude/
