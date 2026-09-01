@@ -9,6 +9,7 @@ set -e
 # never touched by this.
 if [ "${AUTO_DEPLOY:-}" = "true" ]; then
     echo "AUTO_DEPLOY: resetting /app to origin/main..."
+    git config --global --add safe.directory /app
     if [ -n "${GIT_PAT:-}" ]; then
         git remote set-url origin "https://${GIT_PAT}@github.com/Hublove/MTG-Vault.git"
     fi
